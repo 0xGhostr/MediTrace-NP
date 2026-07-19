@@ -263,7 +263,7 @@ def change_language():
     )
     return response
 
-
+# app route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
