@@ -59,7 +59,7 @@ def main():
     print("timeline_chart", client.get("/api/charts/access-timeline").status_code)
     print("severity_chart", client.get("/api/charts/alerts-by-severity").status_code)
 
-    # Messaging
+    # Messagin
     messages_page = client.get("/admin/messages")
     token = extract_csrf(messages_page.data.decode())
     doctor_id = get_user_by_username("doctor1")["id"]
