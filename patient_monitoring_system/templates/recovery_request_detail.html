@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}{{ _('Recovery') }} {{ recovery.public_reference }}{% endblock %}
+{% block extra_head %}<link href="{{ url_for('static', filename='css/account-recovery.css') }}" rel="stylesheet">{% endblock %}
+{% block content %}
+<div class="app-page recovery-detail-page">
+  {{ page_header('Recovery Request Review', recovery.public_reference ~ ' · ' ~ _(request_types.get(recovery.request_type, recovery.request_type)), 'bi-person-vcard', tr_display(recovery.status), 'bi-shield-lock') }}
+  <div class="mb-3"><a href="{{ url_for('recovery_requests') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i>Back to Requests</a></div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-xl-7">
+      <section class="card h-100"><div class="card-header"><strong><i class="bi bi-person-lines-fill me-2"></i>Submitted Identity Information</strong></div><div class="card-body">
+        <dl class="recovery-detail-grid">
+          <div><dt>Staff ID</dt><dd>{{ recovery.submitted_staff_id }}</dd></div><div><dt>Full Name</dt><dd>{{ recovery.submitted_name }}</dd></div>
+          <div><dt>Email</dt><dd data-no-translate>{{ recovery.submitted_email }}</dd></div><div><dt>Department</dt><dd>{{ tr_display(recovery.submitted_department) }}</dd></div>
+          <div><dt>Role</dt><dd>{{ tr_display(recovery.submitted_role) }}</dd></div><div><dt>Destination</dt><dd>{{ _(destinations.get(recovery.requested_destination)) }}</dd></div>
+          <div><dt>Source IP</dt><dd><code>{{ recovery.request_ip or 'Unavailable' }}</code></dd></div><div><dt>Submitted</dt><dd>{{ recovery.created_at|nepal_datetime }}</dd></div>
+        </dl>
+        <div class="recovery-message-box"><span>Requester message</span><p data-no-translate>{{ recovery.message }}</p></div>
+        <details class="recovery-user-agent"><summary>Request user-agent metadata</summary><code data-no-translate>{{ recovery.request_user_agent or 'Unavailable' }}</code></details>
+      </div></section>
+    </div>
+    <div class="col-xl-5">
+      <section class="card h-100"><div class="card-header"><strong><i class="bi bi-link-45deg me-2"></i>Institutional Account Match</strong></div><div class="card-body">
+        {% if recovery.matched_user_id %}
+          <dl class="recovery-detail-grid compact"><div><dt>Name</dt><dd data-no-translate>{{ recovery.matched_name }}</dd></div><div><dt>Username</dt><dd data-no-translate>{{ recovery.matched_username }}</dd></div><div><dt>Staff ID</dt><dd data-no-translate>{{ recovery.matched_staff_id }}</dd></div><div><dt>Email</dt><dd data-no-translate>{{ recovery.matched_email }}</dd></div><div><dt>Role</dt><dd>{{ tr_display(recovery.matched_role) }}</dd></div><div><dt>Account Status</dt><dd>{{ tr_display(recovery.matched_account_status) }}</dd></div></dl>
+          <div class="alert alert-warning py-2 small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>A database match is not identity verification. Verify through an approved institutional process.</div>
+        {% else %}
+          <div class="empty-state py-4"><i class="bi bi-person-x"></i><h5>No automatic Staff ID match</h5><p>An authorized administrator may select the correct institutional account during review.</p></div>
+        {% endif %}
+      </div></section>
+    </div>
+  </div>
+
+  <section class="card recovery-timeline-card mb-3"><div class="card-header"><strong><i class="bi bi-clock-history me-2"></i>Review Timeline</strong></div><div class="card-body"><div class="recovery-timeline">
+    <div class="done"><span></span><strong>Submitted</strong><small>{{ recovery.created_at|nepal_datetime }}</small></div>
+    <div class="{% if recovery.review_started_at %}done{% endif %}"><span></span><strong>Review Started</strong><small>{{ recovery.review_started_at|nepal_datetime }}</small></div>
+    <div class="{% if recovery.identity_verified_at %}done{% endif %}"><span></span><strong>Identity Verified</strong><small>{{ recovery.identity_verified_at|nepal_datetime }}</small></div>
+    <div class="{% if recovery.completed_at or recovery.rejected_at %}done{% endif %}"><span></span><strong>{{ 'Rejected' if recovery.rejected_at else 'Completed' }}</strong><small>{{ (recovery.rejected_at or recovery.completed_at)|nepal_datetime }}</small></div>
+  </div></div></section>
+
+  {% if recovery.status in ['pending', 'in_review'] %}
+  <section class="card recovery-action-card mb-3"><div class="card-header"><strong>1. Assign Account and Start Review</strong></div><div class="card-body"><form method="POST" class="row g-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="start_review">
+    <div class="col-lg-6"><label class="form-label" for="matchedUser">Institutional account</label><select class="form-select" id="matchedUser" name="matched_user_id" required><option value="">Select verified directory account</option>{% for user in manageable_users %}<option value="{{ user.id }}" {% if user.id == recovery.matched_user_id %}selected{% endif %}>{{ user.full_name }} — {{ user.staff_id }} ({{ user.role }})</option>{% endfor %}</select></div>
+    <div class="col-lg-6"><label class="form-label" for="startAdminPassword">Your administrator password</label><input class="form-control" type="password" id="startAdminPassword" name="admin_password" maxlength="128" autocomplete="current-password" required></div>
+    <div class="col-12"><label class="form-label" for="reviewNotes">Initial review notes</label><textarea class="form-control" id="reviewNotes" name="review_notes" maxlength="2000" rows="3">{{ recovery.review_notes or '' }}</textarea></div>
+    <div class="col-12"><button class="btn btn-primary"><i class="bi bi-play-circle"></i>{{ 'Update Review Assignment' if recovery.status == 'in_review' else 'Start Review' }}</button></div>
+  </form></div></section>
+  {% endif %}
+
+  {% if recovery.status == 'in_review' %}
+  <section class="card recovery-action-card mb-3"><div class="card-header"><strong>2. Record Identity Verification</strong></div><div class="card-body"><div class="alert alert-danger py-2"><i class="bi bi-shield-exclamation me-2"></i>Do not mark identity verified based only on the submitted form or database match.</div><form method="POST" class="row g-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="verify_identity">
+    <div class="col-lg-6"><label class="form-label" for="verificationMethod">Approved verification method</label><select id="verificationMethod" name="identity_verification_method" class="form-select" required><option value="">Select method</option>{% for value, label in verification_methods.items() %}<option value="{{ value }}">{{ _(label) }}</option>{% endfor %}</select></div>
+    <div class="col-lg-6"><label class="form-label" for="verifyAdminPassword">Your administrator password</label><input class="form-control" type="password" id="verifyAdminPassword" name="admin_password" maxlength="128" autocomplete="current-password" required></div>
+    <div class="col-12"><label class="form-label" for="verificationNotes">Verification evidence and outcome</label><textarea class="form-control" id="verificationNotes" name="identity_verification_notes" maxlength="2000" minlength="10" rows="4" required></textarea></div>
+    <div class="col-12"><button class="btn btn-success"><i class="bi bi-person-check"></i>Confirm Identity Verified</button></div>
+  </form></div></section>
+  {% endif %}
+
+  {% if recovery.status == 'identity_verified' %}
+  <section class="card recovery-action-card verified mb-3"><div class="card-header"><strong>3. Resolve Verified Recovery Request</strong></div><div class="card-body"><div class="alert alert-success py-2"><i class="bi bi-patch-check me-2"></i>Identity was verified by {{ recovery.verified_by_name }} using {{ verification_methods.get(recovery.identity_verification_method, recovery.identity_verification_method) }}.</div><form method="POST" class="row g-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="resolve">
+    <div class="col-lg-6"><label class="form-label" for="resolutionType">Resolution</label><select id="resolutionType" name="resolution_type" class="form-select" required><option value="">Select resolution</option>{% for value, label in resolution_types.items() %}<option value="{{ value }}">{{ _(label) }}</option>{% endfor %}</select></div>
+    <div class="col-lg-6"><label class="form-label" for="resolveAdminPassword">Your administrator password</label><input class="form-control" type="password" id="resolveAdminPassword" name="admin_password" maxlength="128" autocomplete="current-password" required></div>
+    <div class="col-lg-6"><label class="form-label" for="newUsername">New username, only when updating</label><input class="form-control" id="newUsername" name="new_username" maxlength="50" autocomplete="off" placeholder="Leave blank when recovering existing username"></div>
+    <div class="col-lg-3"><label class="form-label" for="temporaryPassword">Temporary password</label><input class="form-control" type="password" id="temporaryPassword" name="temporary_password" maxlength="128" autocomplete="new-password"></div>
+    <div class="col-lg-3"><label class="form-label" for="confirmTemporaryPassword">Confirm temporary password</label><input class="form-control" type="password" id="confirmTemporaryPassword" name="confirm_temporary_password" maxlength="128" autocomplete="new-password"></div>
+    <div class="col-12"><div class="form-text mb-3">Password resets require at least {{ password_min_length }} characters with uppercase, lowercase, number, and special character. Temporary passwords are never stored in this request or audit logs. Credential changes invalidate existing sessions.</div><button class="btn btn-primary"><i class="bi bi-check2-circle"></i>Complete Recovery</button></div>
+  </form></div></section>
+  {% endif %}
+
+  {% if recovery.status in ['pending', 'in_review', 'identity_verified'] %}
+  <section class="card recovery-reject-card"><div class="card-header"><strong>Reject Request Without Credential Changes</strong></div><div class="card-body"><form method="POST" class="row g-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reject">
+    <div class="col-lg-7"><label class="form-label" for="rejectionNotes">Audit reason</label><textarea class="form-control" id="rejectionNotes" name="review_notes" maxlength="2000" minlength="5" required></textarea></div>
+    <div class="col-lg-5"><label class="form-label" for="rejectAdminPassword">Your administrator password</label><input class="form-control" type="password" id="rejectAdminPassword" name="admin_password" maxlength="128" autocomplete="current-password" required><button class="btn btn-outline-danger mt-3"><i class="bi bi-x-circle"></i>Reject Request</button></div>
+  </form></div></section>
+  {% else %}
+  <section class="card recovery-resolution-summary"><div class="card-body"><h3>{{ _('Request') }} {{ tr_display(recovery.status) }}</h3><p class="mb-1"><strong>Resolution:</strong> {{ _(resolution_types.get(recovery.resolution_type, recovery.resolution_type or 'No credential change')) }}</p><p class="mb-0"><strong>Completed by:</strong> <span data-no-translate>{{ recovery.completed_by_name or 'N/A' }}</span></p></div></section>
+  {% endif %}
+</div>
+{% endblock %}

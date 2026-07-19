@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}Account Recovery Requests{% endblock %}
+{% block extra_head %}<link href="{{ url_for('static', filename='css/account-recovery.css') }}" rel="stylesheet">{% endblock %}
+{% block content %}
+<div class="app-page">
+  {{ page_header('Account Recovery Requests', 'Review support requests, verify staff identity, and manage credential recovery safely', 'bi-person-lock', requests|length ~ ' shown', 'bi-shield-check') }}
+
+  <div class="alert alert-info recovery-policy-banner">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+    <span>Public submissions never change credentials. Identity verification and administrator password confirmation are required before any request-based username update or password reset.</span>
+  </div>
+
+  <div class="row g-3 mb-3 recovery-stats">
+    <div class="col-6 col-lg"><div class="metric-card"><div class="card-body"><span>Pending</span><strong>{{ stats.pending }}</strong></div></div></div>
+    <div class="col-6 col-lg"><div class="metric-card"><div class="card-body"><span>In Review</span><strong>{{ stats.in_review }}</strong></div></div></div>
+    <div class="col-6 col-lg"><div class="metric-card"><div class="card-body"><span>Verified</span><strong>{{ stats.identity_verified }}</strong></div></div></div>
+    <div class="col-6 col-lg"><div class="metric-card"><div class="card-body"><span>Completed</span><strong>{{ stats.completed }}</strong></div></div></div>
+    <div class="col-6 col-lg"><div class="metric-card"><div class="card-body"><span>Rejected</span><strong>{{ stats.rejected }}</strong></div></div></div>
+  </div>
+
+  <form method="GET" class="card recovery-filter-card mb-3">
+    <div class="card-body row g-2 align-items-end">
+      <div class="col-lg-4"><label class="form-label" for="recoverySearch">Search</label><input id="recoverySearch" name="search" class="form-control" value="{{ filters.search }}" maxlength="100" placeholder="Reference, Staff ID, or name"></div>
+      <div class="col-sm-4 col-lg-2"><label class="form-label" for="recoveryStatus">Status</label><select id="recoveryStatus" name="status" class="form-select"><option value="">All statuses</option>{% for status in statuses %}<option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ tr_display(status) }}</option>{% endfor %}</select></div>
+      <div class="col-sm-4 col-lg-2"><label class="form-label" for="recoveryType">Request</label><select id="recoveryType" name="request_type" class="form-select"><option value="">All request types</option>{% for value, label in request_types.items() %}<option value="{{ value }}" {% if filters.request_type == value %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}</select></div>
+      {% if current_user.is_super_admin %}<div class="col-sm-4 col-lg-2"><label class="form-label" for="recoveryDestination">Destination</label><select id="recoveryDestination" name="requested_destination" class="form-select"><option value="">All destinations</option>{% for value, label in destinations.items() %}<option value="{{ value }}" {% if filters.requested_destination == value %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}</select></div>{% endif %}
+      <div class="col-lg-2 d-flex gap-2"><button class="btn btn-primary flex-fill"><i class="bi bi-funnel"></i>Filter</button><a href="{{ url_for('recovery_requests') }}" class="btn btn-outline-secondary" aria-label="Clear filters"><i class="bi bi-x-lg"></i></a></div>
+    </div>
+  </form>
+
+  <div class="card"><div class="table-responsive">
+    <table class="table recovery-table align-middle mb-0">
+      <thead><tr><th>Reference</th><th>Submitted Identity</th><th>Request</th><th>Destination</th><th>Status</th><th>Submitted</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for item in requests %}
+        <tr>
+          <td><code>{{ item.public_reference }}</code></td>
+          <td><strong>{{ item.submitted_name }}</strong><small>{{ item.submitted_staff_id }} · {{ item.submitted_role }}</small></td>
+          <td>{{ request_types.get(item.request_type, item.request_type) }}</td>
+          <td>{{ destinations.get(item.requested_destination, item.requested_destination) }}</td>
+          <td><span class="recovery-status status-{{ item.status }}">{{ tr_display(item.status) }}</span></td>
+          <td><small>{{ item.created_at|nepal_datetime }}</small></td>
+          <td><a href="{{ url_for('recovery_request_detail', request_id=item.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i>Review</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7"><div class="empty-state py-5"><i class="bi bi-person-check"></i><h5>No recovery requests found</h5><p>Try clearing the filters or check again later.</p></div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+{% endblock %}

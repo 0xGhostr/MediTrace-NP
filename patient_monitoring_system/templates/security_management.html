@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}Security Management{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Security Management', 'Login security, account lockout and authentication audit trail', 'bi-shield-lock', '3-strike protection', 'bi-shield-check') }}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card metric-card metric-danger">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-x-octagon"></i></div><div class="metric-label">Failed Attempts Today</div><p class="metric-value text-danger">{{ stats.failed_attempts_today }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card metric-warning">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-lock"></i></div><div class="metric-label">Currently Locked</div><p class="metric-value">{{ stats.locked_accounts }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card metric-success">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-check2-circle"></i></div><div class="metric-label">Successful Logins Today</div><p class="metric-value text-success">{{ stats.successful_logins_today }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-person-slash"></i></div><div class="metric-label">Suspended Accounts</div><p class="metric-value">{{ stats.suspended_accounts }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="card mb-4" aria-labelledby="behaviourModelTitle">
+    <div class="card-header">
+        <span id="behaviourModelTitle"><i class="bi bi-cpu me-2"></i>Behavioural Anomaly Model</span>
+        <span class="status-pill {{ 'status-normal' if model_status.available else 'status-high' }}">{{ 'Available' if model_status.available else 'Unavailable' }}</span>
+    </div>
+    <div class="card-body">
+        {% if model_status.available %}
+        <div class="row g-3 mb-3">
+            <div class="col-md-3"><div class="small text-muted">Model</div><strong>{{ model_status.metadata.model_type }}</strong></div>
+            <div class="col-md-3"><div class="small text-muted">Version</div><code>{{ model_status.metadata.model_version }}</code></div>
+            <div class="col-md-3"><div class="small text-muted">Training events</div><strong>{{ model_status.metadata.training_events }}</strong></div>
+            <div class="col-md-3"><div class="small text-muted">Trained at</div><span>{{ model_status.metadata.trained_at[:19].replace('T', ' ') }} UTC</span></div>
+        </div>
+        <p class="small text-muted">Scores are empirical anomaly percentiles relative to training outputs, not probabilities of malicious intent. Patient medical content is excluded.</p>
+        {% else %}
+        <div class="alert alert-warning py-2">{{ model_status.load_error or 'No compatible model is available.' }} Deterministic rules remain active and authoritative.</div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('retrain_behaviour_model') }}" class="d-flex flex-wrap align-items-center gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary" data-confirm="Retrain the behavioural model from historical access metadata?"><i class="bi bi-arrow-repeat"></i>Train / Retrain Model</button>
+            <span class="small text-muted">Requires at least {{ model_status.minimum_training_events }} historical non-USB access events. The previous artifact is retained if training fails.</span>
+        </form>
+    </div>
+</section>
+
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-lock"></i> Locked Accounts</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Username</th><th>Staff ID</th><th>Role</th><th>Department</th>
+                    <th>Failed Attempts</th><th>Locked Until</th><th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in locked_accounts %}
+                <tr>
+                    <td>{{ u.username }}</td>
+                    <td>{{ u.staff_id }}</td>
+                    <td>{{ tr_display(u.role) }}</td>
+                    <td>{{ tr_display(u.department) }}</td>
+                    <td><span class="badge bg-danger">{{ u.failed_attempts or 0 }}</span></td>
+                    <td>{{ u.locked_until[:19].replace('T', ' ') if u.locked_until else '-' }}</td>
+                    <td>
+                        <form method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="unlock_user_id" value="{{ u.id }}">
+                            <button type="submit" class="btn btn-success btn-sm">Unlock</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-muted text-center py-3">No accounts currently locked</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-clock-history"></i> Recent Failed Login Attempts</div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Timestamp</th><th>Username</th><th>Staff ID</th>
+                    <th>IP Address</th><th>Failure Reason</th><th>Lock Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in failed_logins %}
+                <tr>
+                    <td><small>{{ f.timestamp[:19].replace('T', ' ') }}</small></td>
+                    <td>{{ f.username }}</td>
+                    <td>{{ f.staff_id or '-' }}</td>
+                    <td><code>{{ f.ip_address or 'N/A' }}</code></td>
+                    <td><span class="badge bg-secondary">{{ f.failure_reason or 'unknown' }}</span></td>
+                    <td>
+                        {% if f.is_locked %}
+                        <span class="badge bg-danger">Locked</span>
+                        {% else %}
+                        <span class="badge bg-light text-dark">Not locked</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-muted text-center py-3">No failed login attempts recorded</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="alert alert-info mt-4 mb-0">
+    <i class="bi bi-info-circle"></i>
+    Accounts are locked for <strong>2 minutes</strong> after <strong>3 failed password attempts</strong>.
+    Successful login or admin unlock resets the counter.
+</div>
+</div>
+{% endblock %}

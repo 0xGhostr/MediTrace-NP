@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header, empty_state %}
+{% block title %}Pending Users{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Pending Registrations', 'Review requested roles and approve or reject staff access', 'bi-person-plus', users|length ~ ' pending', 'bi-hourglass-split') }}
+
+{% for user in users %}
+<div class="card mb-3 approval-card">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h5>{{ user.full_name }} ({{ user.staff_id }})</h5>
+                <p class="mb-1"><strong>Email:</strong> {{ user.email }} | <strong>Username:</strong> {{ user.username }}</p>
+                <p class="mb-1">Requested: <span class="badge bg-secondary">{{ tr_display(user.role) }}</span> — {{ tr_display(user.department) }}</p>
+                <p class="mb-0">Work hours: {{ user.work_start }} - {{ user.work_end }}</p>
+                <p class="mb-0"><strong>Registered:</strong> {{ user.created_at_display }}</p>
+            </div>
+            <div class="col-md-4">
+                <form method="POST" class="mb-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <input type="hidden" name="action" value="approve">
+                    <div class="mb-2">
+                        <label class="form-label small">Role</label>
+                        <select name="role" class="form-select form-select-sm">
+                            {% for r in roles %}
+                            <option value="{{ r }}" {% if r == user.role %}selected{% endif %}>{{ tr_display(r) }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Department</label>
+                        <select name="department" class="form-select form-select-sm">
+                            {% for d in departments %}
+                            <option value="{{ d }}" {% if d == user.department %}selected{% endif %}>{{ tr_display(d) }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                        <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-check2-circle"></i>Approve</button>
+                </form>
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <input type="hidden" name="action" value="reject">
+                    <input type="text" name="rejection_reason" class="form-control form-control-sm mb-1" placeholder="Rejection reason">
+                    <button type="submit" class="btn btn-outline-danger btn-sm w-100"><i class="bi bi-x-circle"></i>Reject</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">{{ empty_state('bi-person-check', 'No pending registrations', 'All staff registration requests have been reviewed.') }}</div>
+{% endfor %}
+</div>
+{% endblock %}

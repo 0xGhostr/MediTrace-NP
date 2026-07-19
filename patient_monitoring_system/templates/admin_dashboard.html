@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% from "macros.html" import risk_badge, page_header %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header(
+    ('Super Admin Dashboard' if current_user.is_super_admin else 'Admin Dashboard'),
+    'Live security and access statistics from the simulated healthcare environment',
+    'bi-grid-1x2-fill',
+    'Live monitoring',
+    'bi-broadcast'
+) }}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-activity"></i></div>
+                <div class="metric-label">Access Events Today</div>
+                <p class="metric-value">{{ stats.total_access_today }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card metric-warning">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-bell"></i></div>
+                <div class="metric-label">Alerts Today</div>
+                <p class="metric-value">{{ stats.total_alerts_today }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card metric-card metric-danger">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-exclamation-octagon"></i></div>
+                <div class="metric-label">Critical</div>
+                <p class="metric-value text-danger">{{ stats.critical_alerts }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card metric-card metric-warning">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                <div class="metric-label">High</div>
+                <p class="metric-value">{{ stats.high_alerts }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card metric-card metric-info">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-info-circle"></i></div>
+                <div class="metric-label">Medium</div>
+                <p class="metric-value">{{ stats.medium_alerts }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card metric-card metric-info">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-usb-drive"></i></div>
+                <div class="metric-label">USB Events Today</div>
+                <p class="metric-value">{{ stats.usb_events_today|default(0) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card metric-danger">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-usb-symbol"></i></div>
+                <div class="metric-label">Unknown USB Alerts</div>
+                <p class="metric-value text-danger">{{ stats.unknown_usb_alerts_today|default(0) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card metric-success">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-check2-circle"></i></div>
+                <div class="metric-label">Whitelisted USB</div>
+                <p class="metric-value text-success">{{ stats.whitelisted_usb_count|default(0) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card metric-warning">
+            <div class="card-body">
+                <div class="metric-icon"><i class="bi bi-shield-exclamation"></i></div>
+                <div class="metric-label">USB Critical Alerts</div>
+                <p class="metric-value">{{ stats.usb_critical_alerts|default(0) }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card"><div class="card-body">Normal: <strong class="text-success">{{ stats.risk_counts.Normal }}</strong></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body">Medium: <strong class="text-warning">{{ stats.risk_counts.Medium }}</strong></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body">High: <strong class="text-warning">{{ stats.risk_counts.High }}</strong></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body">Critical: <strong class="text-danger">{{ stats.risk_counts.Critical }}</strong></div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card chart-card-compact h-100">
+            <div class="card-header py-2 small">Access Events Over Time (7 days)</div>
+            <div class="card-body"><canvas id="accessChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card chart-card-compact h-100">
+            <div class="card-header py-2 small">Alerts by Severity</div>
+            <div class="card-body"><canvas id="alertChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card chart-card-compact h-100">
+            <div class="card-header py-2 small">User Registrations (7 days) · Month: <span id="monthRegTotal">0</span></div>
+            <div class="card-body"><canvas id="registrationChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Recent Access Events</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>User</th><th>Record</th><th>Risk</th><th>Time</th></tr></thead>
+                    <tbody>
+                        {% for e in stats.recent_events %}
+                        <tr>
+                            <td>{{ e.username }}</td>
+                            <td>{{ e.record_id or '-' }}</td>
+                            <td>{{ risk_badge(e.final_risk_level) }}</td>
+                            <td><small>{{ e.timestamp[:16].replace('T', ' ') }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Recent Alerts</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>User</th><th>Severity</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for a in stats.recent_alerts %}
+                        <tr>
+                            <td>{{ a.username }}</td>
+                            <td>{{ risk_badge(a.severity) }}</td>
+                            <td><span class="badge bg-{{ 'success' if a.status == 'resolved' else 'danger' }}">{{ tr_display(a.status) }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4 mb-4">
+    <div class="card-header"><i class="bi bi-usb-drive"></i> Recent USB Events</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>User</th><th>Event</th><th>USB</th><th>Serial</th><th>Risk</th><th>Time</th></tr></thead>
+            <tbody>
+                {% for e in stats.recent_usb_events|default([]) %}
+                <tr>
+                    <td>{{ e.username }}</td>
+                    <td><span class="badge bg-secondary">{{ e.event_type }}</span></td>
+                    <td>{{ e.usb_name }}</td>
+                    <td><code>{{ e.usb_serial }}</code></td>
+                    <td>{{ risk_badge(e.risk_level) }}</td>
+                    <td><small>{{ e.timestamp[:16].replace('T', ' ') }}</small></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-muted text-center">No USB events yet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">Top Risky Users Today</div>
+    <div class="table-responsive">
+    <table class="table mb-0">
+        <thead><tr><th>Username</th><th>Staff ID</th><th>Role</th><th>Events</th><th>Risky Events</th></tr></thead>
+        <tbody>
+            {% for u in stats.top_risky_users %}
+            <tr>
+                <td>{{ u.username }}</td>
+                <td>{{ u.staff_id }}</td>
+                <td>{{ tr_display(u.role) }}</td>
+                <td>{{ u.event_count }}</td>
+                <td><span class="badge bg-danger">{{ u.risky_count }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-muted text-center">No data yet</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

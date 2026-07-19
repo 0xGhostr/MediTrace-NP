@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Reports', 'Privacy-safe exports containing record IDs and categories only', 'bi-file-earmark-bar-graph', reports|length ~ ' generated', 'bi-file-check') }}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="app-page-icon mb-3"><i class="bi bi-calendar-check"></i></div>
+                <h2 class="app-section-title mb-2">Daily Access Report</h2>
+                <p class="app-section-subtitle mb-3">Summarize today’s monitored access and risk activity.</p>
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="report_type" value="daily">
+                    <button class="btn btn-primary"><i class="bi bi-file-earmark-plus"></i>Generate today’s report</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="app-page-icon mb-3"><i class="bi bi-exclamation-triangle"></i></div>
+                <h2 class="app-section-title mb-2">Alert Report</h2>
+                <p class="app-section-subtitle mb-3">Export alert severity, review status and findings.</p>
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="report_type" value="alerts">
+                    <button class="btn btn-warning"><i class="bi bi-file-earmark-plus"></i>Generate alert report</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="app-page-icon mb-3"><i class="bi bi-people"></i></div>
+                <h2 class="app-section-title mb-2">User Activity Report</h2>
+                <p class="app-section-subtitle mb-3">Summarize staff access and alert activity.</p>
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="report_type" value="activity">
+                    <button class="btn btn-info"><i class="bi bi-file-earmark-plus"></i>Generate activity report</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+<div class="card-header"><span>Report History</span><span class="badge bg-primary">{{ reports|length }}</span></div>
+<div class="table-responsive"><table class="table table-hover">
+    <thead><tr><th>ID</th><th>Type</th><th>Date</th><th>Generated</th><th>Format</th><th>Actions</th></tr></thead>
+    <tbody>
+        {% for r in reports %}
+        <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.report_type }}</td>
+            <td>{{ r.report_date }}</td>
+            <td>{{ r.generated_at[:19].replace('T', ' ') }}</td>
+            <td>{{ r.format }}</td>
+            <td>
+                <div class="table-actions"><a href="{{ url_for('view_report', report_id=r.id) }}" class="btn btn-sm btn-primary"><i class="bi bi-eye"></i>View</a>
+                <a href="{{ url_for('download_report', report_id=r.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i>Download</a></div>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-muted text-center">No reports generated yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table></div></div></div>
+{% endblock %}

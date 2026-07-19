@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% from "macros.html" import risk_badge, empty_state, scoring_explanation %}
+{% block title %}Security Alerts{% endblock %}
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/security-alerts.css') }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div class="app-page security-alerts-page">
+  <header class="security-alerts-header">
+    <div class="security-alerts-heading">
+      <div class="app-page-icon" aria-hidden="true"><i class="bi bi-bell"></i></div>
+      <div>
+        <h1>Security Alerts</h1>
+        <p>Review suspicious access alerts, validate incidents, and manage alert resolution</p>
+      </div>
+    </div>
+    {% if alert_summary.last_updated %}
+    <span class="alerts-last-updated"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>Latest alert {{ alert_summary.last_updated[:19].replace('T', ' ') }} UTC</span>
+    {% endif %}
+  </header>
+
+  <section class="alerts-review-banner" role="note">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+    <p><strong>Human review required.</strong> Rule, behavioural anomaly and hybrid scores support investigation only—no automatic punishment is applied. Alerts may result from after-hours activity, sensitive or cross-department access, repeated or bulk access patterns, role mismatches, delete attempts, combined risk rules, and monitored USB events.</p>
+  </section>
+
+  <section class="alerts-summary-grid" aria-label="Alert summary">
+    <article class="alert-summary-card summary-open">
+      <span class="alert-summary-icon"><i class="bi bi-bell" aria-hidden="true"></i></span>
+      <div><strong>{{ alert_summary.open_count }}</strong><span>Open Alerts</span></div>
+    </article>
+    <article class="alert-summary-card summary-critical">
+      <span class="alert-summary-icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></span>
+      <div><strong>{{ alert_summary.critical_count }}</strong><span>Critical Alerts</span></div>
+    </article>
+    <article class="alert-summary-card summary-high">
+      <span class="alert-summary-icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></span>
+      <div><strong>{{ alert_summary.high_count }}</strong><span>High Alerts</span></div>
+    </article>
+    <article class="alert-summary-card summary-resolved">
+      <span class="alert-summary-icon"><i class="bi bi-check-circle" aria-hidden="true"></i></span>
+      <div><strong>{{ alert_summary.resolved_count }}</strong><span>Resolved Alerts</span></div>
+    </article>
+  </section>
+
+  <section class="card alerts-filter-card" aria-label="Alert filters">
+    <form method="GET" class="alerts-filter-form">
+      <div class="alerts-filter-label"><i class="bi bi-funnel" aria-hidden="true"></i><span>Filters</span></div>
+
+      <div class="alerts-select-wrap">
+        <label class="visually-hidden" for="alertSeverity">Severity</label>
+        <select name="severity" id="alertSeverity" class="form-select">
+          <option value="">All Severity</option>
+          {% for severity in filter_options.severities %}
+          <option value="{{ severity }}"{% if filters.get('severity') == severity %} selected{% endif %}>{{ tr_display(severity) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="alerts-select-wrap">
+        <label class="visually-hidden" for="alertStatus">Status</label>
+        <select name="status" id="alertStatus" class="form-select">
+          <option value="">All Status</option>
+          {% for status in filter_options.statuses %}
+          <option value="{{ status }}"{% if filters.get('status') == status %} selected{% endif %}>{{ tr_display(status) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="alerts-search search-control">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <label class="visually-hidden" for="alertSearch">Search alerts</label>
+        <input type="search" name="search" id="alertSearch" class="form-control" value="{{ filters.get('search', '') }}" placeholder="Search by alert ID, user, staff ID, record, rule...">
+      </div>
+
+      <a href="{{ url_for('admin_alerts') }}" class="btn btn-outline-secondary alerts-clear-button"><i class="bi bi-x" aria-hidden="true"></i>Clear</a>
+      <button type="submit" class="btn btn-primary"><i class="bi bi-funnel" aria-hidden="true"></i>Apply Filter</button>
+    </form>
+  </section>
+
+  <div class="alerts-results-bar">
+    <span>
+      Showing <strong>{{ pagination.showing_from }}–{{ pagination.showing_to }}</strong>
+      of <strong>{{ pagination.filtered_total }}</strong> alerts
+      {% if pagination.filtered_total != alert_summary.total %}<span class="alerts-total-context">({{ alert_summary.total }} total)</span>{% endif %}
+    </span>
+    <span><i class="bi bi-sort-down" aria-hidden="true"></i>Sorted by severity, then newest first</span>
+  </div>
+
+  <section class="security-alert-list" aria-label="Security alert results">
+    {% for alert in alerts %}
+    <article class="security-alert-card severity-{{ alert.severity|lower }} status-{{ alert.status|lower|replace(' ', '-') }}">
+      <header class="security-alert-card-header">
+        <div class="security-alert-identity">
+          <span class="security-alert-number">#{{ alert.id }}</span>
+          <div>
+            <strong>{{ alert.username }}</strong>
+            <span>({{ tr_display(alert.role) }})</span>
+            {% if alert.user_full_name and alert.user_full_name != alert.username %}<small>{{ alert.user_full_name }}</small>{% endif %}
+          </div>
+        </div>
+        <div class="security-alert-badges">
+          {{ risk_badge(alert.severity) }}
+          <span class="status-pill status-{{ alert.status|lower|replace(' ', '-') }}">{{ tr_display(alert.status) }}</span>
+        </div>
+      </header>
+
+      <div class="security-alert-card-body">
+        <p class="security-alert-reason">{{ alert.reason }}</p>
+
+        {% if alert.triggered_rule_list %}
+        <div class="security-alert-rules" aria-label="Triggered rules">
+          {% for rule in alert.triggered_rule_list %}<span>{{ rule }}</span>{% endfor %}
+        </div>
+        {% endif %}
+
+        <dl class="security-alert-metadata">
+          {% if alert.record_id is not none %}
+          <div><dt><i class="bi bi-hash" aria-hidden="true"></i>Record ID</dt><dd>{{ alert.record_id }}</dd></div>
+          {% endif %}
+          <div><dt><i class="bi bi-shield-check" aria-hidden="true"></i>Rule Score</dt><dd>{{ alert.rule_score if alert.rule_score is not none else 'Legacy' }}</dd></div>
+          <div><dt><i class="bi bi-cpu" aria-hidden="true"></i>Behavioural Anomaly</dt><dd class="alert-score alert-score-{{ alert.severity|lower }}">{% if alert.anomaly_method == 'legacy_unverified' %}{{ alert.ml_score }}/100 legacy{% elif alert.anomaly_score is not none %}{{ alert.anomaly_score }}/100{% else %}N/A{% endif %}</dd></div>
+          <div><dt><i class="bi bi-calculator" aria-hidden="true"></i>Hybrid Score</dt><dd>{{ alert.hybrid_score ~ '/100' if alert.hybrid_score is not none else 'Legacy' }}</dd></div>
+          <div><dt><i class="bi bi-calendar3" aria-hidden="true"></i>Created</dt><dd>{{ alert.created_at[:19].replace('T', ' ') }}</dd></div>
+          <div><dt><i class="bi bi-building" aria-hidden="true"></i>Department</dt><dd>{{ tr_display(alert.department) }}</dd></div>
+          {% if alert.event_staff_id %}
+          <div><dt><i class="bi bi-person-badge" aria-hidden="true"></i>Staff ID</dt><dd>{{ alert.event_staff_id }}</dd></div>
+          {% endif %}
+          {% if alert.event_action_type %}
+          <div><dt><i class="bi bi-activity" aria-hidden="true"></i>Action</dt><dd>{{ alert.event_action_type|replace('_', ' ')|title }}</dd></div>
+          {% endif %}
+          {% if alert.event_ip_address %}
+          <div><dt><i class="bi bi-globe2" aria-hidden="true"></i>IP Address</dt><dd>{{ alert.event_ip_address }}</dd></div>
+          {% endif %}
+          {% if alert.event_computer_name %}
+          <div class="alert-device-meta"><dt><i class="bi bi-pc-display" aria-hidden="true"></i>Device</dt><dd title="{{ alert.event_computer_name }}">{{ alert.event_computer_name }}</dd></div>
+          {% endif %}
+          {% if alert.event_record_category %}
+          <div><dt><i class="bi bi-file-medical" aria-hidden="true"></i>Record Type</dt><dd>{{ tr_display(alert.event_record_category) }}{% if alert.event_sensitivity_level %} · {{ tr_display(alert.event_sensitivity_level) }}{% endif %}</dd></div>
+          {% endif %}
+        </dl>
+        {{ scoring_explanation(alert) }}
+
+        {% if alert.status == 'open' %}
+        <div class="security-alert-review-area">
+          <form method="POST" class="security-alert-review-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="resolve">
+            <input type="hidden" name="alert_id" value="{{ alert.id }}">
+            <input type="hidden" name="severity" value="{{ filters.get('severity', '') }}">
+            <input type="hidden" name="status" value="{{ filters.get('status', '') }}">
+            <input type="hidden" name="search" value="{{ filters.get('search', '') }}">
+            <input type="hidden" name="page" value="{{ pagination.page }}">
+            <label for="alertNotes{{ alert.id }}">Admin Review Notes</label>
+            <textarea name="notes" id="alertNotes{{ alert.id }}" class="form-control" rows="3" placeholder="Enter review notes, investigation findings, or resolution rationale...">{{ alert.notes or '' }}</textarea>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check2-circle" aria-hidden="true"></i>Mark Resolved</button>
+          </form>
+
+          <form method="POST" class="security-alert-delete-form" data-confirm="Delete this alert permanently?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="alert_id" value="{{ alert.id }}">
+            <input type="hidden" name="severity" value="{{ filters.get('severity', '') }}">
+            <input type="hidden" name="status" value="{{ filters.get('status', '') }}">
+            <input type="hidden" name="search" value="{{ filters.get('search', '') }}">
+            <input type="hidden" name="page" value="{{ pagination.page }}">
+            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash3" aria-hidden="true"></i>Delete Alert</button>
+          </form>
+        </div>
+        {% else %}
+        <div class="security-alert-resolved-area">
+          <div class="security-alert-saved-notes">
+            <span>Admin Review Notes</span>
+            <p>{{ alert.notes or 'No review notes were recorded.' }}</p>
+            <small>
+              Resolved{% if alert.resolved_by_name %} by {{ alert.resolved_by_name }}{% endif %}
+              {% if alert.resolved_at %} · {{ alert.resolved_at[:19].replace('T', ' ') }}{% endif %}
+            </small>
+          </div>
+          <form method="POST" class="security-alert-delete-form" data-confirm="Delete this alert permanently?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="alert_id" value="{{ alert.id }}">
+            <input type="hidden" name="severity" value="{{ filters.get('severity', '') }}">
+            <input type="hidden" name="status" value="{{ filters.get('status', '') }}">
+            <input type="hidden" name="search" value="{{ filters.get('search', '') }}">
+            <input type="hidden" name="page" value="{{ pagination.page }}">
+            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash3" aria-hidden="true"></i>Delete Alert</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </article>
+    {% else %}
+    <div class="card security-alerts-empty">{{ empty_state('bi-shield-check', 'No alerts found', 'No alerts match the selected filters or search.') }}</div>
+    {% endfor %}
+  </section>
+
+  {% if pagination.total_pages > 1 %}
+  <nav class="alerts-pagination" aria-label="Security alert pages">
+    <a class="alerts-page-link{% if pagination.page == 1 %} is-disabled{% endif %}"
+       {% if pagination.page > 1 %}href="{{ url_for('admin_alerts', severity=filters.get('severity', ''), status=filters.get('status', ''), search=filters.get('search', ''), page=pagination.page - 1) }}"{% else %}aria-disabled="true"{% endif %}>
+      <i class="bi bi-chevron-left" aria-hidden="true"></i>Previous
+    </a>
+
+    <div class="alerts-page-numbers">
+      {% for page_number in range(1, pagination.total_pages + 1) %}
+        {% if page_number == 1 or page_number == pagination.total_pages or (page_number >= pagination.page - 2 and page_number <= pagination.page + 2) %}
+        <a class="alerts-page-number{% if page_number == pagination.page %} is-active{% endif %}"
+           href="{{ url_for('admin_alerts', severity=filters.get('severity', ''), status=filters.get('status', ''), search=filters.get('search', ''), page=page_number) }}"
+           {% if page_number == pagination.page %}aria-current="page"{% endif %}>{{ page_number }}</a>
+        {% elif page_number == 2 and pagination.page > 4 %}
+        <span class="alerts-page-ellipsis">…</span>
+        {% elif page_number == pagination.total_pages - 1 and pagination.page < pagination.total_pages - 3 %}
+        <span class="alerts-page-ellipsis">…</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <a class="alerts-page-link{% if pagination.page == pagination.total_pages %} is-disabled{% endif %}"
+       {% if pagination.page < pagination.total_pages %}href="{{ url_for('admin_alerts', severity=filters.get('severity', ''), status=filters.get('status', ''), search=filters.get('search', ''), page=pagination.page + 1) }}"{% else %}aria-disabled="true"{% endif %}>
+      Next<i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </a>
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

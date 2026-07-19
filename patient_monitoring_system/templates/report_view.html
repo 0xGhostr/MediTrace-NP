@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}View Report{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('View Report', _(report.report_type|title) ~ ' · ' ~ report.report_date ~ ' · ' ~ _('Generated') ~ ' ' ~ report.generated_at[:19].replace('T', ' '), 'bi-file-text', report.format|upper, 'bi-filetype-csv') }}
+
+<div class="mb-3">
+  <div class="app-actions"><a href="{{ url_for('admin_reports') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i>Back to Reports</a>
+  <a href="{{ url_for('download_report', report_id=report.id) }}" class="btn btn-primary btn-sm"><i class="bi bi-download"></i>Download CSV</a></div>
+</div>
+
+<div class="card">
+  <div class="table-responsive" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-sm table-striped report-view-table mb-0">
+      <tbody>
+        {% for row in rows %}
+        {% set report_header_row = loop.first %}
+        <tr>
+          {% for cell in row %}
+          <td{% if not report_header_row %} data-no-translate{% endif %}>{{ _(cell|replace('_', ' ')|title) if report_header_row else cell }}</td>
+          {% endfor %}
+        </tr>
+        {% else %}
+        <tr><td class="text-muted">No data in report file.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+{% endblock %}

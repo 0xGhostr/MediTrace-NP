@@ -1,0 +1,19 @@
+Staff ID,Username,Role,Department,Approval Status,Total Accesses,Alerts Generated
+SAD001,superadmin,Super Admin,Administration,approved,35,24
+DOC001,doctor1,Doctor,General Medicine,approved,19,3
+manjil01,Manjil001,Doctor,Psychiatry,deleted,13,9
+NUR001,nurse1,Nurse,General Medicine,approved,12,3
+meme01,meme1,Doctor,General Medicine,approved,10,6
+ADM001,admin,Admin,Administration,approved,5,4
+ritu01,ritu11,Doctor,Infectious Disease,approved,4,4
+REC001,reception1,Receptionist,Reception,approved,2,2
+BIL001,billing1,Billing Staff,Billing,approved,2,2
+Rohitt002,Rohit001,Doctor,Laboratory,approved,2,2
+LAB001,lab1,Laboratory Staff,Laboratory,approved,0,0
+PEN001,pending1,Nurse,General Medicine,rejected,0,0
+PEN002,pending2,Receptionist,Reception,rejected,0,0
+REJ001,rejected1,Doctor,General Medicine,rejected,0,0
+SUS001,suspended1,Billing Staff,Billing,suspended,0,0
+TEST999,test999,Nurse,General Medicine,rejected,0,0
+Rohit01,Rohit11,Admin,Administration,approved,0,0
+sandip01,sandip001,Doctor,General Medicine,approved,0,0

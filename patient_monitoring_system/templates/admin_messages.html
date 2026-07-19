@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}Admin Messages{% endblock %}
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/message-inbox.css') }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Admin Messages', 'Send notices to staff and review delivery status', 'bi-chat-left-text', sent_messages|length ~ ' sent', 'bi-send-check') }}
+
+<div class="card mb-4">
+  <div class="card-header"><span>Send Message to User</span><span class="status-pill status-neutral"><i class="bi bi-shield-check"></i>Internal message</span></div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('send_admin_message') }}" class="row g-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="col-md-3">
+        <select name="receiver_id" class="form-select" required>
+          <option value="">Select User</option>
+          {% for u in users %}
+          <option value="{{ u.id }}">{{ u.full_name }} ({{ u.username }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3"><input name="title" class="form-control" placeholder="Message title" required></div>
+      <div class="col-md-4"><input name="body" class="form-control" placeholder="Message content" required></div>
+      <div class="col-md-1 d-flex align-items-center"><label class="form-check-label"><input class="form-check-input me-1" type="checkbox" name="is_urgent"> Urgent</label></div>
+      <div class="col-md-1"><button class="btn btn-primary w-100"><i class="bi bi-send"></i>Send</button></div>
+    </form>
+  </div>
+</div>
+
+{% set inbox_items = sent_messages %}
+{% set inbox_direction = 'sent' %}
+{% set inbox_list_label = 'Sent messages' %}
+{% set inbox_notice_label = 'Sent Message Notice' %}
+{% set inbox_notice_text = 'Review notices delivered to staff, including their priority and current read status. Use the filters to find a specific communication.' %}
+{% set inbox_empty_title = 'No messages sent' %}
+{% set inbox_empty_text = 'Messages sent to authorized staff will appear here.' %}
+{% include "_message_inbox.html" %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/message-inbox.js') }}"></script>
+{% endblock %}

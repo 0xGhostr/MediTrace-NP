@@ -1,0 +1,28 @@
+Daily Patient Record Access Report
+Date,2026-07-19
+Generated At,2026-07-19T09:02:48.012502
+
+Summary Statistics
+Total Patient Record Accesses,14
+Total Active Users,3
+Total Alerts,12
+Critical Alerts,7
+High Alerts,4
+Medium Alerts,1
+Normal Events,2
+
+Staff ID,Username,Role,Department,Device,Records Accessed,Record IDs,Categories,Sensitivity Levels,Risk Levels,Average Rule Score,Average Behavioural Anomaly Score,Average Hybrid Score,Alerts Generated,Admin Review Status
+SAD001,superadmin,Super Admin,Administration,Web session,3,38,"General Medical,USB Monitoring","Medium,Critical,Low","Medium,Critical,Normal",35.0,78.0,41.7,2,Pending Review
+ADM001,admin,Admin,Administration,Web session,10,72,"General Medical,USB Monitoring",Critical,"High,Critical",80.0,84.9,81.1,10,Pending Review
+DOC001,doctor1,Doctor,General Medicine,Web session,1,37,General Medical,Low,Normal,0.0,92.0,32.0,0,Pending Review
+
+USB Monitoring Summary
+Total USB Events,3
+Unknown USB Insertions,1
+Whitelisted USB Insertions,1
+USB Critical Alerts,2
+
+USB Users Involved (no patient details)
+Username,Staff ID,PC/Device,USB Serial(s),Event Count
+superadmin,SAD001,TEST-PC,"UNKNOWN-USB-001,APPROVED-USB-001",2
+admin,ADM001,Web session,WINUSB-6915201084829526833,1

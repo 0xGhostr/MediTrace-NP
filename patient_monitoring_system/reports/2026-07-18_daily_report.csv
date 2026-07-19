@@ -1,0 +1,31 @@
+Daily Patient Record Access Report
+Date,2026-07-18
+Generated At,2026-07-18T18:48:14.948661
+
+Summary Statistics
+Total Patient Record Accesses,26
+Total Active Users,3
+Total Alerts,25
+Critical Alerts,12
+High Alerts,10
+Medium Alerts,3
+Normal Events,1
+
+Staff ID,Username,Role,Department,Device,Records Accessed,Record IDs,Categories,Sensitivity Levels,Risk Levels,Average Rule Score,Average Behavioural Anomaly Score,Average Hybrid Score,Alerts Generated,Admin Review Status
+SAD001,superadmin,Super Admin,Administration,SIM-PC,1,,USB Monitoring,Low,Normal,0.0,Legacy/unavailable,0.0,0,Pending Review
+ADM001,admin,Admin,Administration,Web session,2,,USB Monitoring,Critical,Critical,Legacy/unavailable,85.0,Legacy/unavailable,0,Pending Review
+meme01,meme1,Doctor,General Medicine,Web session,23,"63,37,38,39,72,50","Confidential,General Medical,Emergency,USB Monitoring","Critical,Low,Medium,High","Critical,Medium,High",45.0,74.5,64.5,17,Pending Review
+
+USB Monitoring Summary
+Total USB Events,17
+Unknown USB Insertions,0
+Whitelisted USB Insertions,3
+USB Critical Alerts,8
+
+USB Users Involved (no patient details)
+Username,Staff ID,PC/Device,USB Serial(s),Event Count
+superadmin,SAD001,SIM-PC,UNKNOWN-USB-001,5
+superadmin,SAD001,Web session,WINUSB-4,1
+admin,ADM001,SIM-PC,"APPROVED-USB-001,UNKNOWN-USB-001",2
+admin,ADM001,Web session,"WIN-D,WINUSB-4",2
+meme1,meme01,Web session,"WIN-D,WINUSB-4",7

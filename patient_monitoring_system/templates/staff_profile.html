@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}My Profile{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('My Profile', 'Your staff identity, assigned role and working schedule', 'bi-person', tr_display(user.approval_status), 'bi-person-check') }}
+<div class="card col-xl-8">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="profile-avatar"><i class="bi bi-person"></i></div>
+            <div><h2 class="app-section-title mb-1" data-no-translate>{{ user.full_name }}</h2><p class="app-section-subtitle">{{ tr_display(user.role) }} · {{ tr_display(user.department) }}</p></div>
+        </div>
+        <div class="detail-grid">
+            <div class="detail-item"><span class="detail-label">Staff ID</span><span class="detail-value">{{ user.staff_id }}</span></div>
+            <div class="detail-item"><span class="detail-label">Username</span><span class="detail-value">{{ user.username }}</span></div>
+            <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">{{ user.email }}</span></div>
+            <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value"><span class="status-pill status-approved">{{ tr_display(user.approval_status) }}</span></span></div>
+            <div class="detail-item"><span class="detail-label">Role</span><span class="detail-value">{{ tr_display(user.role) }}</span></div>
+            <div class="detail-item"><span class="detail-label">Department</span><span class="detail-value">{{ tr_display(user.department) }}</span></div>
+            <div class="detail-item"><span class="detail-label">Work Start</span><span class="detail-value">{{ user.work_start }}</span></div>
+            <div class="detail-item"><span class="detail-label">Work End</span><span class="detail-value">{{ user.work_end }}</span></div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}

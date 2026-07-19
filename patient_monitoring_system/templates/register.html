@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Register') }} - {{ APP_NAME|default('MediTrace-Np') }}{% endblock %}
+{% block content %}
+<div class="auth-shell auth-shell-wide">
+        <div class="card auth-card">
+            <div class="auth-brand">
+                <img src="{{ url_for('static', filename='images/meditrace-logo.svg') }}" alt="MediTrace-Np" class="login-brand-logo mb-2">
+                <h1>Staff Self-Registration</h1>
+                <p>Request access to the MediTrace-NP monitoring platform</p>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info"><i class="bi bi-info-circle"></i><span>Your account remains pending until an administrator approves it.</span></div>
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        Please fix the following errors:
+                        <ul class="mb-0">
+                            {% for field, errors in form.errors.items() %}
+                                {% for error in errors %}
+                                <li>{{ field }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">{{ form.full_name.label(class="form-label") }}{{ form.full_name(class="form-control") }}</div>
+                        <div class="col-md-6 mb-3">{{ form.staff_id.label(class="form-label") }}{{ form.staff_id(class="form-control") }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">{{ form.email.label(class="form-label") }}{{ form.email(class="form-control") }}</div>
+                        <div class="col-md-6 mb-3">{{ form.username.label(class="form-label") }}{{ form.username(class="form-control") }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.password.label(class="form-label") }}
+                            <div class="password-input-group">
+                                {{ form.password(class="form-control", id="reg_password") }}
+                                <button type="button" class="password-toggle-eye" data-toggle-password data-target="reg_password" tabindex="-1"><i class="bi bi-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.confirm_password.label(class="form-label") }}
+                            <div class="password-input-group">
+                                {{ form.confirm_password(class="form-control", id="reg_confirm_password") }}
+                                <button type="button" class="password-toggle-eye" data-toggle-password data-target="reg_confirm_password" tabindex="-1"><i class="bi bi-eye"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">{{ form.role.label(class="form-label") }}{{ form.role(class="form-select") }}</div>
+                        <div class="col-md-6 mb-3">{{ form.department.label(class="form-label") }}{{ form.department(class="form-select") }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">{{ form.work_start.label(class="form-label") }}{{ form.work_start(class="form-control", placeholder="08:00") }}</div>
+                        <div class="col-md-6 mb-3">{{ form.work_end.label(class="form-label") }}{{ form.work_end(class="form-control", placeholder="17:00") }}</div>
+                    </div>
+                    <div class="app-actions">{{ form.submit(class="btn btn-primary") }}
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i>Back to Login</a></div>
+                </form>
+            </div>
+        </div>
+</div>
+{% endblock %}

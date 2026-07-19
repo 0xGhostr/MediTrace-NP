@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% from "macros.html" import risk_badge, scoring_explanation %}
+{% block title %}{{ record.patient_code }} - {{ _('Record') }}{% endblock %}
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/record-detail.css') }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+{% set risk_level = result.final_risk_level if result else 'Normal' %}
+{% set risk_key = risk_level|lower %}
+{% set has_vitals = record.heart_rate is not none or record.blood_pressure or record.temperature is not none or record.oxygen_saturation is not none %}
+
+<div class="app-page record-detail-page">
+  <div id="usbLiveBanner" class="d-none"></div>
+
+  <div class="record-breadcrumb-row">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ url_for('patient_records') }}">Patient Records</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ record.patient_code }}</li>
+      </ol>
+    </nav>
+    {% if result and result.timestamp %}
+    <span class="record-access-time"><i class="bi bi-clock" aria-hidden="true"></i>Accessed {{ result.timestamp[:19].replace('T', ' ') }} UTC</span>
+    {% endif %}
+  </div>
+
+  <header class="record-detail-header">
+    <div class="record-detail-heading">
+      <div class="app-page-icon" aria-hidden="true"><i class="bi bi-file-earmark-medical"></i></div>
+      <div>
+        <h1 data-no-translate>{{ record.patient_code }} — {{ record.record_title }}</h1>
+        <p>Simulated patient record · Access session logged and monitored</p>
+      </div>
+    </div>
+    {{ risk_badge(risk_level) }}
+  </header>
+
+  <article class="card record-detail-card">
+    <section class="record-classification" aria-label="Record classification">
+      <div class="record-classification-item">
+        <span>Category</span>
+        <strong>{{ tr_display(record.record_category) }}{% if record.is_restricted %} <span class="status-pill status-critical">Restricted</span>{% endif %}</strong>
+      </div>
+      <div class="record-classification-item">
+        <span>Department</span>
+        <strong>{{ tr_display(record.department) }}</strong>
+      </div>
+      <div class="record-classification-item">
+        <span>Sensitivity</span>
+        <strong class="record-sensitivity-value sensitivity-{{ sensitivity_key(record.sensitivity_level) }}">{{ tr_display(sensitivity_label(record.sensitivity_level)) }}</strong>
+      </div>
+      <div class="record-classification-item">
+        <span>Created</span>
+        <strong>{{ record.created_at[:10] }}</strong>
+      </div>
+      <span class="record-sensitivity-badge sensitivity-{{ sensitivity_key(record.sensitivity_level) }}">
+        <i class="bi bi-shield-exclamation" aria-hidden="true"></i>{{ tr_display(sensitivity_label(record.sensitivity_level)) }} {{ _('record') }}
+      </span>
+    </section>
+
+    <div class="record-detail-body">
+      {% if result %}
+      <section class="record-risk-banner record-risk-{{ risk_key }}" aria-label="Access and risk result">
+        <i class="bi {{ 'bi-shield-check' if risk_key in ['normal', 'low'] else 'bi-exclamation-triangle' }}" aria-hidden="true"></i>
+        <div>
+          <strong>Access logged.</strong>
+          <span>Rules: {{ result.rule_score }}/100</span>
+          <span class="record-risk-divider" aria-hidden="true"></span>
+          <span>Behavioural anomaly: {{ result.anomaly_score ~ '/100' if result.anomaly_score is not none else 'N/A' }}</span>
+          <span class="record-risk-divider" aria-hidden="true"></span>
+          <span>Hybrid: {{ result.final_hybrid_score }}/100</span>
+          <span class="record-risk-divider" aria-hidden="true"></span>
+          <span>Risk: {{ tr_display(result.final_risk_level) }}</span>
+          <span class="record-risk-divider" aria-hidden="true"></span>
+          {% if result.alert_created %}
+          <strong class="record-alert-result">Alert created for administrator review.</strong>
+          {% else %}
+          <span>No alert was required for this access event.</span>
+          {% endif %}
+        </div>
+      </section>
+      {{ scoring_explanation(result, true) }}
+      {% endif %}
+
+      <div class="record-medical-layout{% if not has_vitals %} without-vitals{% endif %}">
+        <section class="record-medical-content" aria-labelledby="patientRecordContentTitle">
+          <h2 class="record-section-heading" id="patientRecordContentTitle">
+            <i class="bi bi-file-medical" aria-hidden="true"></i>Patient Record Content (Simulated)
+          </h2>
+
+          <dl class="record-patient-grid">
+            <div><dt>Patient ID</dt><dd data-no-translate>{{ record.patient_identifier or _('Not recorded') }}</dd></div>
+            <div><dt>Patient Name</dt><dd data-no-translate>{{ record.patient_name or _('Not recorded') }}</dd></div>
+            <div><dt>Age</dt><dd>{{ record.patient_age if record.patient_age is not none else 'Not recorded' }}</dd></div>
+            <div><dt>Gender</dt><dd>{{ record.patient_gender or 'Not recorded' }}</dd></div>
+            <div><dt>Ward or Unit</dt><dd>{{ record.ward or 'Not recorded' }}</dd></div>
+            <div><dt>Admission Date</dt><dd>{{ record.admission_date or 'Not recorded' }}</dd></div>
+            <div><dt>Attending Doctor</dt><dd data-no-translate>{{ record.attending_doctor or _('Not recorded') }}</dd></div>
+            <div><dt>Primary Condition</dt><dd data-no-translate>{{ record.primary_condition or _('Not recorded') }}</dd></div>
+          </dl>
+
+          <section class="record-notes-section">
+            <h3>Clinical or Monitoring Notes</h3>
+            <div class="record-notes-panel{% if not record.clinical_notes %} is-empty{% endif %}" data-no-translate>
+              {{ record.clinical_notes or 'No clinical or monitoring notes recorded.' }}
+            </div>
+          </section>
+
+          <section class="record-treatment-section">
+            <h3>Medication or Treatment</h3>
+            {% if record.medication_or_treatment %}
+            <div class="record-treatment-list">
+              {% for treatment in record.medication_or_treatment.splitlines() %}
+                {% if treatment|trim %}<span data-no-translate><i class="bi bi-check-circle" aria-hidden="true"></i>{{ treatment|trim }}</span>{% endif %}
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="record-empty-copy">No medication or treatment information recorded.</p>
+            {% endif %}
+          </section>
+
+          {% if record.relevant_observations %}
+          <section class="record-text-section">
+            <h3>Relevant Observations</h3>
+            <p data-no-translate>{{ record.relevant_observations }}</p>
+          </section>
+          {% endif %}
+
+          <section class="record-text-section record-general-content">
+            <h3>Additional Record Information</h3>
+            <p data-no-translate>{{ record.content }}</p>
+          </section>
+        </section>
+
+        {% if has_vitals %}
+        <aside class="record-vitals-panel" aria-labelledby="latestVitalsTitle">
+          <h2 class="record-section-heading" id="latestVitalsTitle">
+            <i class="bi bi-activity" aria-hidden="true"></i>Latest Vitals
+          </h2>
+          <div class="record-vitals-grid">
+            {% if record.heart_rate is not none %}
+            <div class="record-vital-card vital-heart">
+              <i class="bi bi-heart-pulse" aria-hidden="true"></i>
+              <strong>{{ record.heart_rate }}</strong>
+              <span>Heart rate · bpm</span>
+            </div>
+            {% endif %}
+            {% if record.blood_pressure %}
+            <div class="record-vital-card vital-pressure">
+              <i class="bi bi-activity" aria-hidden="true"></i>
+              <strong>{{ record.blood_pressure }}</strong>
+              <span>Blood pressure · mmHg</span>
+            </div>
+            {% endif %}
+            {% if record.temperature is not none %}
+            <div class="record-vital-card vital-temperature">
+              <i class="bi bi-thermometer-half" aria-hidden="true"></i>
+              <strong>{{ record.temperature }}</strong>
+              <span>Temperature · °C</span>
+            </div>
+            {% endif %}
+            {% if record.oxygen_saturation is not none %}
+            <div class="record-vital-card vital-oxygen">
+              <i class="bi bi-wind" aria-hidden="true"></i>
+              <strong>{{ record.oxygen_saturation }}</strong>
+              <span>Oxygen saturation · %</span>
+            </div>
+            {% endif %}
+          </div>
+          <p class="record-vitals-disclaimer"><i class="bi bi-info-circle" aria-hidden="true"></i>Stored simulated measurements for academic demonstration only.</p>
+        </aside>
+        {% endif %}
+      </div>
+    </div>
+
+    <footer class="record-detail-footer">
+      <div class="record-detail-actions">
+        <a href="{{ url_for('record_export', record_id=record.id) }}" class="btn btn-primary"
+           title="Export is logged; USB transfer is auto-monitored if a drive is connected">
+          <i class="bi bi-usb-drive" aria-hidden="true"></i>Log Export / Copy to USB
+        </a>
+        {% if not current_user.is_admin_panel %}
+        <form method="POST" action="{{ url_for('record_delete', record_id=record.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-outline-danger" data-confirm="This will log a delete attempt. Continue?">
+            <i class="bi bi-trash3" aria-hidden="true"></i>Attempt Delete (Demo)
+          </button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('patient_records') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i>Back</a>
+      </div>
+
+      {% if result %}
+      <div class="record-audit-summary" aria-label="Access audit information">
+        <span><i class="bi bi-check-circle-fill" aria-hidden="true"></i>Access event #{{ result.event_id }} logged</span>
+        <span>Staff ID: {{ current_user.staff_id }}</span>
+        <span>IP: {{ result.ip_address }}</span>
+        <span class="record-device" title="{{ result.computer_name }}">Device: {{ result.computer_name }}</span>
+      </div>
+      {% endif %}
+    </footer>
+  </article>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/usb-monitor.js') }}"></script>
+{% endblock %}

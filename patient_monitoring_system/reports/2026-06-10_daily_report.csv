@@ -1,0 +1,26 @@
+Daily Patient Record Access Report
+Date,2026-06-10
+Generated At,2026-06-10T05:27:46.839983
+
+Summary Statistics
+Total Patient Record Accesses,11
+Total Active Users,1
+Total Alerts,11
+Critical Alerts,11
+High Alerts,0
+Medium Alerts,0
+Normal Events,0
+
+Staff ID,Username,Role,Department,Device,Records Accessed,Record IDs,Categories,Sensitivity Levels,Risk Levels,Alerts Generated,Admin Review Status
+SAD001,superadmin,Super Admin,Administration,TEST-PC,11,36,"USB Monitoring,HIV-related","Critical,High",Critical,4,Pending Review
+
+USB Monitoring Summary
+Total USB Events,13
+Unknown USB Insertions,5
+Whitelisted USB Insertions,5
+USB Critical Alerts,7
+
+USB Users Involved (no patient details)
+Username,Staff ID,PC/Device,USB Serial(s),Event Count
+superadmin,SAD001,SIM-PC,"APPROVED-USB-001,UNKNOWN-USB-001",5
+superadmin,SAD001,TEST-PC,"UNKNOWN-USB-001,APPROVED-USB-001",8

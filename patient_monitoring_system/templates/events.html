@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "macros.html" import risk_badge, page_header, scoring_explanation %}
+{% block title %}Access Logs{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Access Event Logs', 'Search and review monitored patient-record activity', 'bi-journal-text', events|length ~ ' events', 'bi-activity') }}
+
+<div class="card filter-card"><div class="card-body"><form class="row g-2" method="GET">
+    <div class="col-md-2"><input name="username" class="form-control form-control-sm" placeholder="Username" value="{{ filters.get('username','') }}"></div>
+    <div class="col-md-2"><input name="staff_id" class="form-control form-control-sm" placeholder="Staff ID" value="{{ filters.get('staff_id','') }}"></div>
+    <div class="col-md-2"><input name="record_id" class="form-control form-control-sm" placeholder="Record ID" value="{{ filters.get('record_id','') }}"></div>
+    <div class="col-md-2"><input name="date_from" type="date" class="form-control form-control-sm" value="{{ filters.get('date_from','') }}"></div>
+    <div class="col-md-2">
+        <select name="role" class="form-select form-select-sm">
+            <option value="">All Roles</option>
+            {% for r in roles %}<option value="{{ r }}" {% if filters.get('role')==r %}selected{% endif %}>{{ tr_display(r) }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-md-2">
+        <select name="risk_level" class="form-select form-select-sm">
+            <option value="">All Risk</option>
+            {% for rl in risk_levels %}<option value="{{ rl }}" {% if filters.get('risk_level')==rl %}selected{% endif %}>{{ tr_display(rl) }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-12 app-actions"><button class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i>Apply filters</button>
+    <a href="{{ url_for('admin_events') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-circle"></i>Clear</a></div>
+</form></div></div>
+
+<div class="card"><div class="table-responsive">
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>ID</th><th>Time</th><th>User</th><th>Role</th><th>Record</th>
+                <th>Category</th><th>Action</th><th>After Hrs</th><th>Rules</th><th>Anomaly</th><th>Hybrid</th><th>Risk</th><th>Alert</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in events %}
+            <tr>
+                <td>{{ e.id }}</td>
+                <td><small>{{ e.timestamp[:19] }}</small></td>
+                <td>{{ e.username }}</td>
+                <td>{{ tr_display(e.role) }}</td>
+                <td>{{ e.record_id or '-' }}</td>
+                <td>{{ e.record_category or '-' }}</td>
+                <td><span class="status-pill status-neutral">{{ e.action_type }}</span></td>
+                <td>{% if e.is_after_hours %}<span class="status-pill status-high"><span class="status-dot"></span>Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</td>
+                <td>{{ e.rule_score if e.rule_score is not none else 'Legacy' }}</td>
+                <td>{% if e.anomaly_method == 'legacy_unverified' %}<span title="Historical score not independently verified">{{ e.ml_score }}*</span>{% elif e.anomaly_score is not none %}{{ e.anomaly_score }}{% else %}N/A{% endif %}</td>
+                <td>{{ e.hybrid_score if e.hybrid_score is not none else 'Legacy' }}</td>
+                <td>{{ risk_badge(e.final_risk_level) }}</td>
+                <td>{% if e.alert_created %}<span class="status-pill status-critical"><i class="bi bi-bell-fill"></i>Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</td>
+            </tr>
+            <tr class="explainability-table-row"><td colspan="13">{{ scoring_explanation(e) }}</td></tr>
+            {% else %}
+            <tr><td colspan="13" class="text-center text-muted">No events found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div></div></div>
+{% endblock %}

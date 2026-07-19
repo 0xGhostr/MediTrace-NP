@@ -1,0 +1,158 @@
+{% macro patient_record_fields(categories, departments, sensitivities, record=None, compact=False) %}
+{% set selected_category = record.record_category if record else '' %}
+{% set selected_department = record.department if record else '' %}
+{% set selected_sensitivity = sensitivity_label(record.sensitivity_level) if record else '' %}
+{% set selected_gender = record.patient_gender if record else '' %}
+
+<div class="structured-record-fields{% if compact %} is-compact{% endif %}">
+  <section class="record-form-section">
+    <div class="record-form-section-heading">
+      <i class="bi bi-file-earmark-medical" aria-hidden="true"></i>
+      <div><h3>Record identification</h3><p>System identifiers for this simulated record.</p></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">Record Code</label>
+        <input name="patient_code" class="form-control" value="{{ record.patient_code if record else '' }}" placeholder="PR-036" required>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label">Record Title</label>
+        <input name="record_title" class="form-control" value="{{ record.record_title if record else '' }}" placeholder="Simulated record title" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Simulated Patient ID</label>
+        <input name="patient_identifier" class="form-control" value="{{ record.patient_identifier if record and record.patient_identifier else '' }}" placeholder="PT-10036">
+      </div>
+    </div>
+  </section>
+
+  <section class="record-form-section">
+    <div class="record-form-section-heading">
+      <i class="bi bi-person-vcard" aria-hidden="true"></i>
+      <div><h3>Patient information</h3><p>Use synthetic identities only—never enter real patient data.</p></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Simulated Patient Name</label>
+        <input name="patient_name" class="form-control" value="{{ record.patient_name if record and record.patient_name else '' }}" placeholder="Synthetic name">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Age</label>
+        <input type="number" name="patient_age" class="form-control" value="{{ record.patient_age if record and record.patient_age is not none else '' }}" min="0" max="130" placeholder="Age">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Gender</label>
+        <select name="patient_gender" class="form-select">
+          <option value="">Not recorded</option>
+          {% for gender in ['Female', 'Male', 'Other', 'Not specified'] %}
+          <option value="{{ gender }}"{% if selected_gender == gender %} selected{% endif %}>{{ tr_display(gender) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <section class="record-form-section">
+    <div class="record-form-section-heading">
+      <i class="bi bi-hospital" aria-hidden="true"></i>
+      <div><h3>Admission and clinical information</h3><p>Optional context stored with this specific record.</p></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">Ward or Unit</label>
+        <input name="ward" class="form-control" value="{{ record.ward if record and record.ward else '' }}" placeholder="Ward / unit">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Admission Date</label>
+        <input type="date" name="admission_date" class="form-control" value="{{ record.admission_date if record and record.admission_date else '' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Attending Doctor</label>
+        <input name="attending_doctor" class="form-control" value="{{ record.attending_doctor if record and record.attending_doctor else '' }}" placeholder="Simulated clinician">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Primary Condition</label>
+        <input name="primary_condition" class="form-control" value="{{ record.primary_condition if record and record.primary_condition else '' }}" placeholder="Simulated diagnosis or purpose">
+      </div>
+    </div>
+  </section>
+
+  <section class="record-form-section">
+    <div class="record-form-section-heading">
+      <i class="bi bi-activity" aria-hidden="true"></i>
+      <div><h3>Latest vital signs</h3><p>Optional stored measurements; leave unavailable values blank.</p></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label">Heart Rate (bpm)</label>
+        <input type="number" name="heart_rate" class="form-control" value="{{ record.heart_rate if record and record.heart_rate is not none else '' }}" min="0" max="300" placeholder="bpm">
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label">Blood Pressure (mmHg)</label>
+        <input name="blood_pressure" class="form-control" value="{{ record.blood_pressure if record and record.blood_pressure else '' }}" placeholder="120/80">
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label">Temperature (°C)</label>
+        <input type="number" name="temperature" class="form-control" value="{{ record.temperature if record and record.temperature is not none else '' }}" min="20" max="50" step="0.1" placeholder="°C">
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label">Oxygen Saturation (%)</label>
+        <input type="number" name="oxygen_saturation" class="form-control" value="{{ record.oxygen_saturation if record and record.oxygen_saturation is not none else '' }}" min="0" max="100" step="0.1" placeholder="%">
+      </div>
+    </div>
+  </section>
+
+  <section class="record-form-section">
+    <div class="record-form-section-heading">
+      <i class="bi bi-journal-medical" aria-hidden="true"></i>
+      <div><h3>Notes and treatment</h3><p>All content remains clearly simulated and tied to this record.</p></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <label class="form-label">Clinical or Monitoring Notes</label>
+        <textarea name="clinical_notes" class="form-control" rows="4" placeholder="Simulated clinical notes...">{{ record.clinical_notes if record and record.clinical_notes else '' }}</textarea>
+      </div>
+      <div class="col-lg-6">
+        <label class="form-label">Medication or Treatment</label>
+        <textarea name="medication_or_treatment" class="form-control" rows="4" placeholder="One simulated item per line...">{{ record.medication_or_treatment if record and record.medication_or_treatment else '' }}</textarea>
+        <span class="form-hint">Use one item per line to display separate treatment tags.</span>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Relevant Observations</label>
+        <textarea name="relevant_observations" class="form-control" rows="3" placeholder="Relevant simulated observations...">{{ record.relevant_observations if record and record.relevant_observations else '' }}</textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label">General Record Content</label>
+        <textarea name="content" class="form-control" rows="3" required placeholder="Existing general simulated record content...">{{ record.content if record else '' }}</textarea>
+      </div>
+    </div>
+  </section>
+
+  <section class="record-form-section">
+    <div class="record-form-section-heading">
+      <i class="bi bi-shield-check" aria-hidden="true"></i>
+      <div><h3>Record classification</h3><p>Existing access-control and sensitivity metadata.</p></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Category</label>
+        <select name="record_category" class="form-select">
+          {% for category in categories %}<option value="{{ category }}"{% if selected_category == category %} selected{% endif %}>{{ tr_display(category) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Department</label>
+        <select name="department" class="form-select">
+          {% for department in departments %}<option value="{{ department }}"{% if selected_department == department %} selected{% endif %}>{{ tr_display(department) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Sensitivity</label>
+        <select name="sensitivity_level" class="form-select">
+          {% for sensitivity in sensitivities %}<option value="{{ sensitivity }}"{% if selected_sensitivity == sensitivity %} selected{% endif %}>{{ tr_display(sensitivity) }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+  </section>
+</div>
+{% endmacro %}

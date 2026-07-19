@@ -1,0 +1,223 @@
+{% set message_counts = namespace(read=0, unread=0) %}
+{% for message in inbox_items %}
+  {% if message.is_read %}
+    {% set message_counts.read = message_counts.read + 1 %}
+  {% else %}
+    {% set message_counts.unread = message_counts.unread + 1 %}
+  {% endif %}
+{% endfor %}
+
+<section class="message-center" data-message-center>
+  <div class="message-inbox-notice" role="note">
+    <i class="bi bi-envelope-check" aria-hidden="true"></i>
+    <p><strong>{{ inbox_notice_label }}:</strong> {{ inbox_notice_text }}</p>
+  </div>
+
+  <div class="message-toolbar" aria-label="Message search and filters">
+    <div class="message-search search-control">
+      <i class="bi bi-search" aria-hidden="true"></i>
+      <label class="visually-hidden" for="messageSearch-{{ inbox_direction }}">Search messages</label>
+      <input
+        type="search"
+        class="form-control"
+        id="messageSearch-{{ inbox_direction }}"
+        placeholder="Search messages..."
+        autocomplete="off"
+        data-message-search
+      >
+    </div>
+
+    <div class="message-filter-control">
+      <i class="bi bi-funnel" aria-hidden="true"></i>
+      <label class="visually-hidden" for="messageStatus-{{ inbox_direction }}">Filter by status</label>
+      <select class="form-select" id="messageStatus-{{ inbox_direction }}" data-message-status-filter>
+        <option value="all">All Status</option>
+        <option value="read">Read</option>
+        <option value="unread">Unread</option>
+      </select>
+    </div>
+
+    <div class="message-filter-control">
+      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+      <label class="visually-hidden" for="messagePriority-{{ inbox_direction }}">Filter by priority</label>
+      <select class="form-select" id="messagePriority-{{ inbox_direction }}" data-message-priority-filter>
+        <option value="all">All Priority</option>
+        <option value="urgent">Urgent</option>
+        <option value="normal">Normal</option>
+      </select>
+    </div>
+
+    <span class="message-toolbar-count" data-message-filter-count data-total="{{ inbox_items|length }}">
+      {{ inbox_items|length }} {{ 'message' if inbox_items|length == 1 else 'messages' }}
+    </span>
+  </div>
+
+  <div class="message-inbox-layout">
+    <section class="card message-list-panel" aria-label="{{ inbox_list_label }}">
+      <div class="message-list-header" aria-hidden="true">
+        <span>{{ 'To' if inbox_direction == 'sent' else 'From' }}</span>
+        <span>Subject</span>
+        <span>Priority</span>
+        <span>Time</span>
+        <span>Status</span>
+        <span>Action</span>
+      </div>
+
+      <div class="message-list" data-message-list>
+        {% for m in inbox_items %}
+          {% set person_name = m.receiver_username if inbox_direction == 'sent' else m.sender_username %}
+          {% set priority_value = 'urgent' if m.is_urgent else 'normal' %}
+          {% set status_value = 'read' if m.is_read else 'unread' %}
+          <article
+            class="message-list-row{% if not m.is_read %} is-unread{% endif %}"
+            tabindex="0"
+            data-message-row
+            data-message-id="{{ m.id }}"
+            data-message-template="message-detail-{{ inbox_direction }}-{{ m.id }}"
+            data-search="{{ (person_name ~ ' ' ~ m.title ~ ' ' ~ m.body)|lower|e }}"
+            data-status="{{ status_value }}"
+            data-priority="{{ priority_value }}"
+            aria-label="{{ m.title }} {{ 'to' if inbox_direction == 'sent' else 'from' }} {{ person_name }}"
+          >
+            <div class="message-person-cell">
+              <span class="message-avatar" aria-hidden="true">{{ person_name[:1]|upper }}</span>
+              <span class="message-person-name" data-no-translate>{{ person_name }}</span>
+              {% if not m.is_read %}<span class="message-unread-dot" title="Unread message"></span>{% endif %}
+            </div>
+
+            <div class="message-subject-cell">
+              <span class="message-subject" data-no-translate>{{ m.title }}</span>
+              <span class="message-snippet" data-no-translate>{{ m.body }}</span>
+            </div>
+
+            <div class="message-priority-cell">
+              {% if m.is_urgent %}
+              <span class="status-pill message-priority-urgent">Urgent</span>
+              {% else %}
+              <span class="status-pill status-neutral">Normal</span>
+              {% endif %}
+            </div>
+
+            <time class="message-time-cell" datetime="{{ m.created_at }}">{{ m.created_at[:19].replace('T', ' ') }}</time>
+
+            <div class="message-status-cell">
+              {% if m.is_read %}
+              <span class="status-pill status-read">Read</span>
+              {% else %}
+              <span class="status-pill status-unread">Unread</span>
+              {% endif %}
+            </div>
+
+            <div class="message-action-cell">
+              <button type="button" class="btn btn-sm btn-outline-primary" data-message-view>
+                <i class="bi bi-eye" aria-hidden="true"></i>View
+              </button>
+            </div>
+          </article>
+
+          <template id="message-detail-{{ inbox_direction }}-{{ m.id }}">
+            <div class="message-detail-content">
+              <div class="message-detail-heading">
+                <span class="message-detail-avatar" aria-hidden="true">{{ person_name[:1]|upper }}</span>
+                <div class="message-detail-title-wrap">
+                  <span class="message-detail-eyebrow">{{ 'To' if inbox_direction == 'sent' else 'From' }} {{ person_name }}</span>
+                  <h2 data-no-translate>{{ m.title }}</h2>
+                </div>
+              </div>
+
+              <div class="message-detail-badges">
+                {% if m.is_urgent %}
+                <span class="status-pill message-priority-urgent">Urgent</span>
+                {% else %}
+                <span class="status-pill status-neutral">Normal</span>
+                {% endif %}
+                {% if m.is_read %}
+                <span class="status-pill status-read">Read</span>
+                {% else %}
+                <span class="status-pill status-unread">Unread</span>
+                {% endif %}
+              </div>
+
+              <dl class="message-detail-meta">
+                <div>
+                  <dt>{{ 'Recipient' if inbox_direction == 'sent' else 'Sender' }}</dt>
+                  <dd>{{ person_name }}</dd>
+                </div>
+                <div>
+                  <dt>Date and time</dt>
+                  <dd>{{ m.created_at[:19].replace('T', ' ') }}</dd>
+                </div>
+                <div>
+                  <dt>Priority</dt>
+                  <dd>{{ 'Urgent' if m.is_urgent else 'Normal' }}</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{{ 'Read' if m.is_read else 'Unread' }}</dd>
+                </div>
+              </dl>
+
+              <div class="message-detail-body">
+                <span class="message-detail-body-label">Message</span>
+                <p data-no-translate>{{ m.body }}</p>
+              </div>
+
+              {% if (inbox_direction == 'received' and not m.is_read) or inbox_direction == 'sent' %}
+              <div class="message-detail-actions">
+                {% if inbox_direction == 'received' and not m.is_read %}
+                <form method="POST" action="{{ url_for('user_mark_message_read', message_id=m.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check2" aria-hidden="true"></i>Mark as Read
+                  </button>
+                </form>
+                {% elif inbox_direction == 'sent' %}
+                <form method="POST" action="{{ url_for('admin_messages') }}" data-confirm="Delete this message?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="delete_message">
+                  <input type="hidden" name="message_id" value="{{ m.id }}">
+                  <button type="submit" class="btn btn-outline-danger">
+                    <i class="bi bi-trash3" aria-hidden="true"></i>Delete Message
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </template>
+        {% else %}
+          <div class="message-list-empty">
+            <i class="bi bi-inbox" aria-hidden="true"></i>
+            <h3>{{ inbox_empty_title }}</h3>
+            <p>{{ inbox_empty_text }}</p>
+          </div>
+        {% endfor %}
+
+        <div class="message-list-empty" data-message-no-results hidden>
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <h3>No matching messages found</h3>
+          <p>Adjust the search or filters to see more messages.</p>
+        </div>
+      </div>
+
+      <footer class="message-list-footer">
+        <i class="bi bi-check-circle" aria-hidden="true"></i>
+        <span>
+          <strong>{{ message_counts.read }}</strong> read
+          <span aria-hidden="true">&middot;</span>
+          <strong>{{ message_counts.unread }}</strong> unread
+          <span aria-hidden="true">&middot;</span>
+          <strong>{{ inbox_items|length }}</strong> total
+        </span>
+      </footer>
+    </section>
+
+    <aside class="card message-detail-panel" data-message-detail-panel aria-live="polite" aria-label="Selected message">
+      <div class="message-detail-empty" data-message-detail-empty>
+        <span class="message-detail-empty-icon" aria-hidden="true"><i class="bi bi-chat-left-text"></i></span>
+        <h2>No message selected</h2>
+        <p>Click a row or the View button to read a message.</p>
+      </div>
+    </aside>
+  </div>
+</section>

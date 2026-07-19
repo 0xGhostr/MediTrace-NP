@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}My Messages{% endblock %}
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/message-inbox.css') }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('My Messages', 'Notices and security communications from administrators', 'bi-chat-dots', messages|length ~ ' messages', 'bi-envelope') }}
+
+{% set inbox_items = messages %}
+{% set inbox_direction = 'received' %}
+{% set inbox_list_label = 'Received messages' %}
+{% set inbox_notice_label = 'Inbox Notice' %}
+{% set inbox_notice_text = 'Messages may include account approval updates, review requests, alert notifications, and important administrative communication. Unread messages are highlighted.' %}
+{% set inbox_empty_title = 'No messages available' %}
+{% set inbox_empty_text = 'Administrative and system messages will appear here.' %}
+{% include "_message_inbox.html" %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/message-inbox.js') }}"></script>
+{% endblock %}

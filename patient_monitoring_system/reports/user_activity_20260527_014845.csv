@@ -1,0 +1,11 @@
+Staff ID,Username,Role,Department,Approval Status,Total Accesses,Alerts Generated
+DOC001,doctor1,Doctor,Billing,approved,20,4
+NUR001,nurse1,Nurse,General Medicine,approved,12,3
+ADM001,admin,Admin,Administration,approved,3,3
+REC001,reception1,Receptionist,Reception,approved,2,2
+BIL001,billing1,Billing Staff,Billing,approved,2,2
+LAB001,lab1,Doctor,Psychiatry,approved,0,0
+PEN001,pending1,Nurse,General Medicine,rejected,0,0
+PEN002,pending2,Receptionist,Reception,pending,0,0
+REJ001,rejected1,Doctor,General Medicine,rejected,0,0
+SUS001,suspended1,Billing Staff,Billing,approved,0,0

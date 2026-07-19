@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% from "record_form_macros.html" import patient_record_fields %}
+{% block title %}Add Simulated Patient Data{% endblock %}
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/record-forms.css') }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Add Simulated Patient Data', 'New records appear across Patient Records, staff dashboards and security monitoring', 'bi-plus-square', 'Synthetic data only', 'bi-shield-check') }}
+
+<div class="card record-form-card">
+  <div class="card-header"><span>Structured simulated record</span><span class="status-pill status-neutral"><i class="bi bi-shield-check"></i>Simulated data only</span></div>
+  <div class="card-body">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {{ patient_record_fields(categories, departments, sensitivities, submitted_record) }}
+      <div class="app-actions mt-3"><button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle"></i>Create Record (System-wide)</button>
+        <a href="{{ url_for('patient_records') }}" class="btn btn-outline-secondary"><i class="bi bi-file-medical"></i>View Patient Records</a></div>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Login') }} - {{ APP_NAME|default('MediTrace-Np') }}{% endblock %}
+{% block content %}
+<div class="auth-shell">
+        <div class="card auth-card">
+            <div class="auth-brand">
+                <img src="{{ url_for('static', filename='images/meditrace-logo.svg') }}" alt="MediTrace-Np" class="login-brand-logo mb-2">
+                <h1>{{ APP_NAME|default('MediTrace-Np') }}</h1>
+                <p>Healthcare Security Monitoring · Thesis Prototype</p>
+            </div>
+            <div class="card-body">
+                <h2 class="auth-heading">Welcome back</h2>
+                <p class="auth-subtitle">Sign in with your approved staff account.</p>
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {{ form.username(class="form-control") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.password.label(class="form-label") }}
+                        <div class="password-input-group">
+                            {{ form.password(class="form-control", id="login_password") }}
+                            <button type="button" class="password-toggle-eye" data-toggle-password data-target="login_password" tabindex="-1"><i class="bi bi-eye"></i></button>
+                        </div>
+                    </div>
+                    {{ form.submit(class="btn btn-primary w-100") }}
+                </form>
+                <div class="text-center mt-3">
+                    <a class="small fw-semibold text-decoration-none" href="{{ url_for('account_recovery_request') }}">
+                        <i class="bi bi-key me-1" aria-hidden="true"></i>Forgot username or password?
+                    </a>
+                </div>
+                <div class="text-center pt-3 mt-3 border-top"><span class="text-muted small">New staff?</span> <a class="small fw-semibold text-decoration-none" href="{{ url_for('register') }}">Request an account</a></div>
+            </div>
+        </div>
+        <p class="auth-footer mt-3"><i class="bi bi-shield-check me-1"></i>Simulated data only · Academic prototype</p>
+</div>
+{% endblock %}

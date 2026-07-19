@@ -1,0 +1,96 @@
+{% macro risk_badge(level) %}
+{% if level == 'Critical' %}<span class="status-pill status-critical"><span class="status-dot"></span>{{ tr_display(level) }}</span>
+{% elif level == 'High' %}<span class="status-pill status-high"><span class="status-dot"></span>{{ tr_display(level) }}</span>
+{% elif level == 'Medium' %}<span class="status-pill status-medium"><span class="status-dot"></span>{{ tr_display(level) }}</span>
+{% else %}<span class="status-pill status-normal"><span class="status-dot"></span>{{ tr_display(level or 'Normal') }}</span>{% endif %}
+{% endmacro %}
+
+{% macro scoring_explanation(item, open=false) %}
+{% set exp = item.explanation or {} %}
+<details class="scoring-explanation" {% if open %}open{% endif %}>
+    <summary><i class="bi bi-diagram-3" aria-hidden="true"></i>Risk calculation and explainability</summary>
+    <div class="scoring-explanation-body">
+        {% if exp.scoring_method == 'legacy_unverified' %}
+        <div class="explainability-notice legacy"><strong>Legacy score — not independently verified.</strong> {{ exp.summary }}</div>
+        <div class="explainability-score-grid">
+            <div><span>Stored legacy score</span><strong>{{ exp.legacy_ml_score if exp.legacy_ml_score is not none else item.ml_score }}/100</strong></div>
+            <div><span>Original risk</span><strong>{{ tr_display(exp.final_risk_level or item.final_risk_level or item.severity) }}</strong></div>
+        </div>
+        {% else %}
+        <div class="explainability-score-grid">
+            <div><span>Rule score</span><strong>{{ item.rule_score if item.rule_score is not none else exp.rule_score }}/100</strong></div>
+            <div><span>Behavioural anomaly</span><strong>{% if item.anomaly_score is not none %}{{ item.anomaly_score }}/100{% else %}N/A{% endif %}</strong><small>{{ item.anomaly_method or exp.scoring_method|replace('_', ' ')|title }}</small></div>
+            <div><span>Final hybrid score</span><strong>{{ item.hybrid_score if item.hybrid_score is not none else exp.final_hybrid_score }}/100</strong></div>
+            <div><span>Final risk</span><strong>{{ tr_display(item.final_risk_level or item.severity or exp.final_risk_level) }}</strong></div>
+        </div>
+        {% if exp.hybrid and exp.hybrid.calculation %}<p class="explainability-calculation"><strong>Calculation:</strong> <code>{{ exp.hybrid.calculation }}</code></p>{% endif %}
+        {% if exp.rule_contributions %}
+        <section><h4>Triggered rule contributions</h4><ul class="explainability-list">{% for contribution in exp.rule_contributions %}<li><strong data-no-translate>{{ contribution.rule }}</strong><span>+{{ contribution.points }} points · {{ tr_display(contribution.severity) }}</span><p data-no-translate>{{ contribution.reason }}</p></li>{% endfor %}</ul></section>
+        {% if exp.rule_score_cap_applied %}<p class="small text-muted mt-2">Rule contributions total {{ exp.rule_score_uncapped }} points and are capped at 100.</p>{% endif %}
+        {% else %}<p class="text-muted small">No deterministic suspicious-access rule contributed points.</p>{% endif %}
+        {% if exp.behavioural_deviations %}
+        <section><h4>Behavioural deviations</h4><ul class="explainability-list deviations">{% for deviation in exp.behavioural_deviations %}<li><strong>{{ _(deviation.feature|replace('_', ' ')|title) }}</strong><span data-no-translate>Observed: {{ deviation.observed }} · Expected: {{ deviation.expected }}</span><p data-no-translate>{{ deviation.description }}</p></li>{% endfor %}</ul></section>
+        {% else %}<p class="text-muted small">No material deviation was identified from the selected behavioural baseline.</p>{% endif %}
+        <dl class="explainability-metadata">
+            <div><dt>Baseline source</dt><dd>{{ item.baseline_source or exp.baseline_source or 'Unavailable' }}</dd></div>
+            <div><dt>Confidence</dt><dd>{{ item.model_confidence or exp.model.confidence or 'Unavailable' }}</dd></div>
+            <div><dt>Model version</dt><dd>{{ item.model_version or exp.model.version or 'No ML model used' }}</dd></div>
+            <div><dt>Raw model output</dt><dd>{% if exp.model.raw_decision_function is not none %}decision_function = {{ exp.model.raw_decision_function }}{% else %}N/A{% endif %}</dd></div>
+        </dl>
+        {% if exp.model and exp.model.interpretation %}<p class="small text-muted">{{ exp.model.interpretation }}</p>{% endif %}
+        {% if exp.minimum_risk_override %}<div class="explainability-notice override"><strong>Minimum-risk override applied.</strong> {{ exp.minimum_risk_override.reason }} Score before override: {{ exp.minimum_risk_override.score_before_override }}; minimum: {{ exp.minimum_risk_override.minimum_score }}.</div>{% endif %}
+        <div class="explainability-notice review"><i class="bi bi-person-check"></i>{% if exp.human_review_required %}<strong>Human review required.</strong> This score supports investigation and does not determine malicious intent.{% else %}<strong>No automatic alert threshold reached.</strong> The event remains logged and auditable.{% endif %}</div>
+        {% if exp.privacy_note %}<p class="explainability-privacy"><i class="bi bi-shield-check"></i>{{ exp.privacy_note }}</p>{% endif %}
+        {% endif %}
+    </div>
+</details>
+{% endmacro %}
+
+{% macro page_header(title, subtitle, icon, badge=None, badge_icon='bi-shield-check') %}
+<header class="app-page-header">
+    <div class="app-page-header-left">
+        <div class="app-page-icon" aria-hidden="true"><i class="bi {{ icon }}"></i></div>
+        <div>
+            <h1 class="app-page-title">{{ _(title) }}</h1>
+            {% if subtitle %}<p class="app-page-subtitle">{{ _(subtitle) }}</p>{% endif %}
+        </div>
+    </div>
+    {% if badge %}
+    <span class="app-page-badge"><i class="bi {{ badge_icon }}"></i>{{ _(badge) }}</span>
+    {% endif %}
+</header>
+{% endmacro %}
+
+{% macro empty_state(icon, title, message) %}
+<div class="app-empty-state">
+    <i class="bi {{ icon }}" aria-hidden="true"></i>
+    <h3>{{ _(title) }}</h3>
+    <p>{{ _(message) }}</p>
+</div>
+{% endmacro %}
+
+{% macro user_initials(user) -%}
+{% set full_name = user.full_name|default('', true)|trim %}
+{% set display_name = user.display_name|default('', true)|trim %}
+{% set username = user.username|default('', true)|trim %}
+{% set initials_source = full_name or display_name or username %}
+{% set name_parts = initials_source.split() %}
+{% if name_parts|length > 1 %}{{ (name_parts[0][0] ~ name_parts[-1][0])|upper }}
+{% elif name_parts|length == 1 %}{{ name_parts[0][0]|upper }}
+{% else %}?{% endif %}
+{%- endmacro %}
+
+{% macro sensitivity_pill(level) %}
+{% set key = sensitivity_key(level) %}
+{% if key == 'critical' %}
+<span class="pr-sensitivity pr-sensitivity-critical"><span class="pr-dot" aria-hidden="true"></span>{{ tr_display(sensitivity_label(level)) }}</span>
+{% elif key == 'high' %}
+<span class="pr-sensitivity pr-sensitivity-high"><span class="pr-dot" aria-hidden="true"></span>{{ tr_display(sensitivity_label(level)) }}</span>
+{% elif key == 'medium' %}
+<span class="pr-sensitivity pr-sensitivity-medium"><span class="pr-dot" aria-hidden="true"></span>{{ tr_display(sensitivity_label(level)) }}</span>
+{% elif key == 'low' %}
+<span class="pr-sensitivity pr-sensitivity-low"><span class="pr-dot" aria-hidden="true"></span>{{ tr_display(sensitivity_label(level)) }}</span>
+{% else %}
+<span class="pr-sensitivity pr-sensitivity-neutral"><span class="pr-dot" aria-hidden="true"></span>{{ tr_display(sensitivity_label(level)) }}</span>
+{% endif %}
+{% endmacro %}

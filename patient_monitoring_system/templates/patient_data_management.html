@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header, sensitivity_pill %}
+{% from "record_form_macros.html" import patient_record_fields %}
+{% block title %}Patient Data Management{% endblock %}
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/record-forms.css') }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Patient Data Management', 'Create and maintain simulated records without real patient identifiers', 'bi-database-add', records|length ~ ' active records', 'bi-database-check') }}
+
+<div class="card mb-4">
+  <div class="card-header"><span>Add Simulated Patient Record</span><span class="status-pill status-neutral"><i class="bi bi-shield-check"></i>Simulated data only</span></div>
+  <div class="card-body">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="create">
+      {{ patient_record_fields(categories, departments, sensitivities, submitted_record if submitted_action == 'create' else none) }}
+      <div class="app-actions mt-3"><button class="btn btn-primary"><i class="bi bi-plus-circle"></i>Add Record</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span>All Active Simulated Records</span><span class="badge bg-primary">{{ records|length }}</span></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Code</th><th>Title</th><th>Category</th><th>Dept</th><th>Sensitivity</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td><strong class="text-primary">{{ r.patient_code }}</strong></td>
+          <td><strong>{{ r.record_title }}</strong></td>
+          <td>{{ tr_display(r.record_category) }}{% if r.is_restricted %} <span class="status-pill status-critical">Restricted</span>{% endif %}</td>
+          <td>{{ tr_display(r.department) }}</td>
+          <td>{{ sensitivity_pill(r.sensitivity_level) }}</td>
+          <td><div class="table-actions">
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#editRecord{{ r.id }}">Edit</button>
+            <form method="POST" class="d-inline" data-confirm="Deactivate this record?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="deactivate">
+              <input type="hidden" name="record_id" value="{{ r.id }}">
+              <button class="btn btn-sm btn-danger">Deactivate</button>
+            </form>
+          </div></td>
+        </tr>
+        <tr id="editRecord{{ r.id }}" class="collapse edit-panel{% if submitted_action == 'update' and submitted_record and submitted_record.get('record_id')|int == r.id %} show{% endif %}">
+          <td colspan="6">
+            <form method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="update">
+              <input type="hidden" name="record_id" value="{{ r.id }}">
+              {{ patient_record_fields(categories, departments, sensitivities, submitted_record if submitted_action == 'update' and submitted_record and submitted_record.get('record_id')|int == r.id else r, true) }}
+              <div class="app-actions mt-3"><button class="btn btn-sm btn-success"><i class="bi bi-check2"></i>Save Record</button></div>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted">No records available.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+{% endblock %}

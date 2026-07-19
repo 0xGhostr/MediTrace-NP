@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Account Recovery Request') }} - {{ APP_NAME }}{% endblock %}
+{% block extra_head %}<link href="{{ url_for('static', filename='css/account-recovery.css') }}" rel="stylesheet">{% endblock %}
+{% block content %}
+<div class="auth-shell auth-shell-wide recovery-public-shell">
+  <div class="card auth-card recovery-public-card">
+    <div class="auth-brand recovery-brand">
+      <img src="{{ url_for('static', filename='images/meditrace-logo.svg') }}" alt="MediTrace-Np" class="login-brand-logo mb-2">
+      <h1>Account Recovery Request</h1>
+      <p>Secure administrative review for MediTrace-NP staff accounts</p>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info recovery-assurance" role="note">
+        <i class="bi bi-shield-lock" aria-hidden="true"></i>
+        <span>This request does not change, unlock, approve, restore, or sign in to any account. An authorized administrator must verify your identity first.</span>
+      </div>
+      <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="row g-3">
+          <div class="col-12">{{ form.request_type.label(class="form-label") }}{{ form.request_type(class="form-select") }}</div>
+          <div class="col-md-6">{{ form.staff_id.label(class="form-label") }}{{ form.staff_id(class="form-control", maxlength="20", autocomplete="off") }}</div>
+          <div class="col-md-6">{{ form.full_name.label(class="form-label") }}{{ form.full_name(class="form-control", maxlength="100", autocomplete="name") }}</div>
+          <div class="col-md-6">{{ form.email.label(class="form-label") }}{{ form.email(class="form-control", maxlength="254", autocomplete="email") }}</div>
+          <div class="col-md-6">{{ form.department.label(class="form-label") }}{{ form.department(class="form-select") }}</div>
+          <div class="col-md-6">{{ form.role.label(class="form-label") }}{{ form.role(class="form-select") }}</div>
+          <div class="col-md-6">{{ form.requested_destination.label(class="form-label") }}{{ form.requested_destination(class="form-select") }}<div class="form-text">This is a routing preference. Backend permissions determine who may process the request.</div></div>
+          <div class="col-12">
+            {{ form.message.label(class="form-label") }}
+            {{ form.message(class="form-control", rows="4", maxlength="1000", placeholder="Explain what account information you have forgotten and any details that may help the administrator verify your identity.") }}
+            <div class="secret-warning"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><strong>Do not enter your current password, previous password, temporary password, or any other secret in this message.</strong></div>
+          </div>
+          <div class="col-12 d-flex flex-column flex-sm-row gap-2 justify-content-between align-items-sm-center pt-2">
+            <a href="{{ url_for('login') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i>Back to Login</a>
+            {{ form.submit(class="btn btn-primary px-4") }}
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  <p class="auth-footer mt-3"><i class="bi bi-shield-check me-1"></i>Credentials are never accepted through this request form.</p>
+</div>
+{% endblock %}

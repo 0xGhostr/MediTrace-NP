@@ -1,0 +1,18 @@
+Daily Patient Record Access Report
+Date,2026-05-25
+Generated At,2026-05-25T04:02:04.829682
+
+Summary Statistics
+Total Patient Record Accesses,23
+Total Active Users,4
+Total Alerts,4
+Critical Alerts,1
+High Alerts,9
+Medium Alerts,9
+Normal Events,4
+
+Staff ID,Username,Role,Department,Device,Records Accessed,Record IDs,Categories,Sensitivity Levels,Risk Levels,Alerts Generated,Admin Review Status
+DOC001,doctor1,Doctor,General Medicine,SEED-DEVICE,8,"1,9,10,13,15,16,28","General Medical,HIV-related,Confidential","Low,Critical,Medium","Normal,High",4,Pending Review
+NUR001,nurse1,Nurse,General Medicine,SEED-DEVICE,12,"1,2,3,4,5,6,7,8,9,10,11,12","General Medical,Emergency,Billing,Laboratory,HIV-related,Psychiatric","Low,Medium,High,Critical","Medium,High",3,Pending Review
+REC001,reception1,Receptionist,Reception,SEED-DEVICE,1,13,Confidential,Critical,High,1,Pending Review
+BIL001,billing1,Billing Staff,Billing,SEED-DEVICE,2,"11,2","Psychiatric,General Medical","High,Medium","High,Critical",2,Pending Review

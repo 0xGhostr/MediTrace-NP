@@ -1,0 +1,21 @@
+.usb-policy-notice { display: flex; gap: .75rem; align-items: flex-start; }
+.usb-section-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.usb-device-table th, .usb-events-table th { white-space: nowrap; }
+.usb-device-table td { min-width: 7.5rem; }
+.usb-device-table td:first-child { min-width: 12rem; }
+.usb-device-table td:last-child { min-width: 21rem; }
+.usb-device-status { display: inline-flex; align-items: center; border-radius: 999px; padding: .25rem .55rem; font-size: .72rem; font-weight: 700; line-height: 1; border: 1px solid transparent; }
+.usb-device-status.status-pending { color: #9a6700; background: #fff8dc; border-color: #f5cf63; }
+.usb-device-status.status-whitelisted { color: #087443; background: #e8fff3; border-color: #86e8b5; }
+.usb-device-status.status-blocked { color: #b42318; background: #fff0f0; border-color: #f7a7a2; }
+.usb-device-actions form { margin: 0; }
+.usb-policy-action-form .form-control { min-width: 15rem; }
+.usb-manual-card summary { cursor: pointer; list-style: none; }
+.usb-manual-card summary::-webkit-details-marker { display: none; }
+.usb-manual-card summary::after { content: '+'; margin-left: auto; font-size: 1.15rem; }
+.usb-manual-card[open] summary::after { content: '−'; }
+.usb-browser-cell { max-width: 16rem; color: var(--app-text-muted); font-size: .78rem; }
+@media (max-width: 767.98px) {
+    .usb-section-header { align-items: flex-start; flex-direction: column; }
+    .usb-device-table td:last-child { min-width: 17rem; }
+}

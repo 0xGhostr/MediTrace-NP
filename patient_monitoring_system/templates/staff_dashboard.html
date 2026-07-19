@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header, sensitivity_pill %}
+{% block title %}Staff Dashboard{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Staff Dashboard', _('Welcome, {name}', name=current_user.full_name) ~ ' · ' ~ tr_display(current_user.role) ~ ' · ' ~ tr_display(current_user.department), 'bi-house-door', 'Monitored access', 'bi-shield-check') }}
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> Records outside your role are marked Restricted. Access is logged and flagged.
+    Alerts require human admin review — ML supports investigation only.
+</div>
+
+<div class="card filter-card"><div class="card-body">
+<form class="row g-2 align-items-center" method="GET">
+    <div class="col-md-8 col-lg-6 search-control">
+        <i class="bi bi-search"></i>
+        <input type="search" name="search" class="form-control" placeholder="Search by code or title..." value="{{ search }}">
+    </div>
+    <div class="col-md-auto">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i>Search records</button>
+    </div>
+</form>
+</div></div>
+
+<div class="card">
+    <div class="card-header"><span>Available Patient Records</span><span class="badge bg-primary">{{ records|length }}</span></div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Department</th>
+                    <th>Sensitivity</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in records %}
+                <tr class="{{ 'table-warning' if not r.allowed else '' }}">
+                    <td><strong class="text-primary">{{ r.patient_code }}</strong></td>
+                    <td><strong data-no-translate>{{ r.record_title }}</strong></td>
+                    <td>{{ tr_display(r.record_category) }}{% if r.is_restricted %} <span class="status-pill status-critical">Restricted</span>{% endif %}</td>
+                    <td>{{ tr_display(r.department) }}</td>
+                    <td>{{ sensitivity_pill(r.sensitivity_level) }}</td>
+                    <td><a href="{{ url_for('record_detail', record_id=r.id) }}" class="btn btn-sm btn-primary"><i class="bi bi-eye"></i>View</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted">No records found for your role.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+{% endblock %}

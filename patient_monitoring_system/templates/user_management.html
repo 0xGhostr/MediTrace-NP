@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}User Management{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('User Management', 'Manage staff access, roles, departments and account status', 'bi-people', users|length ~ ' users', 'bi-person-check') }}
+<div class="app-actions mb-3">
+  <a href="{{ url_for('admin_create_user') }}" class="btn btn-sm btn-primary"><i class="bi bi-person-fill-add"></i>Create User (Emergency)</a>
+  <a href="{{ url_for('pending_users') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-person-plus"></i>Pending Registrations</a>
+  <a href="{{ url_for('recovery_requests') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-person-lock"></i>Recovery Requests{% if open_recovery_request_count %} <span class="badge text-bg-danger">{{ open_recovery_request_count }}</span>{% endif %}</a>
+</div>
+
+<div class="card"><div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Staff ID</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Registered</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.full_name }}</td>
+                <td>{{ user.staff_id }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ tr_display(user.role) }}</td>
+                <td>{{ tr_display(user.department) }}</td>
+                <td>
+                    {% if user.approval_status == 'approved' %}<span class="badge bg-success">Approved</span>
+                    {% elif user.approval_status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                    {% elif user.approval_status == 'suspended' %}<span class="badge bg-danger">Suspended</span>
+                    {% else %}<span class="badge bg-secondary">{{ tr_display(user.approval_status) }}</span>{% endif %}
+                </td>
+                <td><small>{{ user.created_at_display }}</small></td>
+                <td><div class="table-actions">
+                    <a href="{{ url_for('user_activity', user_id=user.id) }}" class="btn btn-sm btn-info">Activity</a>
+                    {% if user.role not in ['Admin', 'Super Admin'] and user.approval_status == 'approved' %}
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                        <input type="hidden" name="action" value="suspend">
+                        <button class="btn btn-sm btn-warning">Suspend</button>
+                    </form>
+                    {% elif user.approval_status == 'suspended' %}
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                        <input type="hidden" name="action" value="reactivate">
+                        <button class="btn btn-sm btn-success">Reactivate</button>
+                    </form>
+                    {% endif %}
+                    {% if user.role not in ['Admin', 'Super Admin'] or (is_super_admin and user.role == 'Admin') %}
+                    <form method="POST" class="d-inline" data-confirm="Delete this user? Logs will be preserved.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                        <input type="hidden" name="action" value="delete">
+                        <button class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                    {% endif %}
+                    {% if user.role not in ['Admin', 'Super Admin'] or (is_super_admin and user.role == 'Admin') %}
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_user_account', user_id=user.id) }}"><i class="bi bi-pencil-square"></i>Edit Account</a>
+                    {% endif %}
+                </div></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div></div></div>
+{% endblock %}

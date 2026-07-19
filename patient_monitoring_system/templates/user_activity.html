@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "macros.html" import risk_badge, page_header %}
+{% block title %}User Activity{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('User Activity', activity.user.full_name ~ ' (' ~ activity.user.username ~ ')', 'bi-activity', tr_display(activity.user.approval_status), 'bi-person-badge') }}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card metric-card"><div class="card-body"><div class="metric-icon"><i class="bi bi-folder2-open"></i></div><div class="metric-label">Total Accesses</div><p class="metric-value">{{ activity.total_records_accessed }}</p></div></div></div>
+  <div class="col-md-3"><div class="card metric-card metric-info"><div class="card-body"><div class="metric-icon"><i class="bi bi-calendar-day"></i></div><div class="metric-label">Today’s Accesses</div><p class="metric-value">{{ activity.records_accessed_today }}</p></div></div></div>
+  <div class="col-md-3"><div class="card metric-card metric-warning"><div class="card-body"><div class="metric-icon"><i class="bi bi-bell"></i></div><div class="metric-label">Alerts</div><p class="metric-value">{{ activity.alerts_generated }}</p></div></div></div>
+  <div class="col-md-3"><div class="card metric-card metric-success"><div class="card-body"><div class="metric-icon"><i class="bi bi-box-arrow-in-right"></i></div><div class="metric-label">Last Login</div><p class="mt-2 mb-0 fw-semibold small">{{ activity.last_login or 'N/A' }}</p></div></div></div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="detail-grid">
+      <div class="detail-item"><span class="detail-label">Role</span><span class="detail-value">{{ tr_display(activity.user.role) }}</span></div>
+      <div class="detail-item"><span class="detail-label">Department</span><span class="detail-value">{{ tr_display(activity.user.department) }}</span></div>
+      <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value">{{ tr_display(activity.user.approval_status) }}</span></div>
+      <div class="detail-item"><span class="detail-label">Last Access</span><span class="detail-value">{{ activity.last_access_time or 'N/A' }}</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Recent Access Events</div>
+      <div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>Time</th><th>Record</th><th>Action</th><th>Risk</th></tr></thead>
+        <tbody>
+          {% for e in activity.recent_events %}
+          <tr>
+            <td>{{ e.timestamp[:19] }}</td>
+            <td>{{ e.record_id or '-' }}</td>
+            <td>{{ e.action_type }}</td>
+            <td>{{ risk_badge(e.final_risk_level) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted">No events</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Recent Alerts</div>
+      <div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>Time</th><th>Severity</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for a in activity.recent_alerts %}
+          <tr>
+            <td>{{ a.created_at[:19] }}</td>
+            <td>{{ risk_badge(a.severity) }}</td>
+            <td><span class="status-pill status-{{ 'resolved' if a.status == 'resolved' else 'open' }}">{{ tr_display(a.status) }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-center text-muted">No alerts</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}

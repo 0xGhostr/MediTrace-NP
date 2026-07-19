@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% from "macros.html" import risk_badge, page_header, scoring_explanation %}
+{% block title %}USB Monitoring{% endblock %}
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/usb-monitoring.css') }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div class="app-page usb-monitoring-page">
+{{ page_header('USB Monitoring', 'Detected-device inventory, policy status, and removable-media audit history', 'bi-usb-drive', devices|length ~ ' devices', 'bi-shield-check') }}
+
+<div class="alert alert-info mb-4 usb-policy-notice">
+    <i class="bi bi-info-circle"></i>
+    <div><strong>Application-level USB policy:</strong> Detected devices begin as pending. MediTrace-NP permits its patient-record USB export workflow only for whitelisted devices; pending and blocked attempts are logged and alerted. This does not physically disable Windows USB ports.</div>
+</div>
+
+<section class="card mb-4 border-warning">
+    <div class="card-header"><span><i class="bi bi-play-circle me-2 text-warning"></i>Simulation Controls</span><span class="status-pill status-medium">Demo / No Hardware</span></div>
+    <div class="card-body">
+        <form method="POST" class="row g-2 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-md-3">
+                <label class="form-label small" for="simulationComputer">PC / Device Name</label>
+                <input id="simulationComputer" type="text" name="computer_name" class="form-control" value="SIM-PC" placeholder="SIM-PC" maxlength="120">
+            </div>
+            <div class="col-md-9 d-flex flex-wrap gap-2">
+                <button type="submit" name="action" value="simulate_unknown" class="btn btn-danger"><i class="bi bi-usb-symbol"></i>Simulate Unknown USB</button>
+                <button type="submit" name="action" value="simulate_whitelisted" class="btn btn-success"><i class="bi bi-hospital"></i>Simulate Hospital USB</button>
+                <button type="submit" name="action" value="simulate_removed" class="btn btn-secondary"><i class="bi bi-usb-drive"></i>Simulate USB Removed</button>
+                <button type="submit" name="action" value="simulate_export" class="btn btn-warning"><i class="bi bi-download"></i>Simulate Record Export</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="card mb-4" aria-labelledby="detectedDevicesTitle">
+    <div class="card-header usb-section-header">
+        <span id="detectedDevicesTitle"><i class="bi bi-device-ssd me-2 text-primary"></i>Detected USB Devices</span>
+        <span class="text-muted small">One inventory entry per stable serial</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 usb-device-table">
+            <thead>
+                <tr><th>USB Name</th><th>Serial</th><th>Size</th><th>Last Drive</th><th>First Seen</th><th>Last Seen</th><th>Last User</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for d in devices %}
+                <tr>
+                    <td><strong>{{ d.usb_name }}</strong>{% if d.vendor_id or d.product_id %}<div class="small text-muted">VID {{ d.vendor_id or '-' }} · PID {{ d.product_id or '-' }}</div>{% endif %}</td>
+                    <td><code>{{ d.usb_serial }}</code></td>
+                    <td>{{ d.usb_size or '-' }}</td>
+                    <td>{{ d.current_drive or '-' }}</td>
+                    <td><small>{{ (d.first_seen or d.added_at)[:16].replace('T', ' ') }}</small></td>
+                    <td><small>{{ (d.last_seen or d.added_at)[:16].replace('T', ' ') }}</small></td>
+                    <td>{{ d.last_user_name or '-' }}{% if d.last_staff_id %}<div class="small text-muted">{{ d.last_staff_id }}</div>{% endif %}</td>
+                    <td>
+                        <span class="usb-device-status status-{{ d.status }}">{{ tr_display(d.status) }}</span>
+                        {% if d.status_changed_at %}<div class="small text-muted mt-1" title="Changed by {{ d.status_changed_by_name or 'administrator' }}">{{ d.status_changed_at[:16].replace('T', ' ') }}</div>{% endif %}
+                    </td>
+                    <td class="usb-device-actions">
+                        <form method="POST" class="usb-policy-action-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="device_id" value="{{ d.id }}">
+                            <label class="visually-hidden" for="reviewNotes{{ d.id }}">Review notes for {{ d.usb_name }}</label>
+                            <input id="reviewNotes{{ d.id }}" type="text" name="review_notes" class="form-control form-control-sm mb-1" placeholder="Review notes (optional)" maxlength="1000">
+                            <div class="d-flex flex-wrap gap-1">
+                            {% if d.status != 'whitelisted' %}
+                            <button type="submit" name="action" value="whitelist_device" class="btn btn-success btn-sm"><i class="bi bi-check2-circle"></i>Whitelist</button>
+                            {% endif %}
+                            {% if d.status != 'blocked' %}
+                            <button type="submit" name="action" value="block_device" class="btn btn-outline-danger btn-sm" data-confirm="Block this USB device in MediTrace-NP?"><i class="bi bi-slash-circle"></i>Block</button>
+                            {% endif %}
+                            {% if d.status != 'pending' %}
+                            <button type="submit" name="action" value="set_pending" class="btn btn-outline-secondary btn-sm"><i class="bi bi-hourglass-split"></i>Set Pending</button>
+                            {% endif %}
+                            <a href="{{ url_for('usb_monitoring', device_id=d.id) }}#usbEvents" class="btn btn-outline-primary btn-sm"><i class="bi bi-clock-history"></i>View Activity</a>
+                            </div>
+                        </form>
+                        {% if d.notes %}<div class="small text-muted mt-1" title="{{ d.notes }}">{{ d.notes|truncate(70) }}</div>{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" class="text-muted text-center py-4">No USB devices detected yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <details class="card h-100 usb-manual-card">
+            <summary class="card-header">Manual / Emergency Whitelist Registration</summary>
+            <div class="card-body">
+                <p class="small text-muted">Use only when hardware detection cannot supply the device. Detected devices should be managed in the inventory above.</p>
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="add_whitelist">
+                    <div class="mb-2"><label class="visually-hidden" for="manualUsbName">USB name</label><input id="manualUsbName" type="text" name="usb_name" class="form-control form-control-sm" placeholder="USB Name" required maxlength="120"></div>
+                    <div class="mb-2"><label class="visually-hidden" for="manualUsbSerial">Stable serial</label><input id="manualUsbSerial" type="text" name="usb_serial" class="form-control form-control-sm" placeholder="Stable serial" required maxlength="160"></div>
+                    <div class="mb-2"><label class="visually-hidden" for="manualUsbSize">USB size</label><input id="manualUsbSize" type="text" name="usb_size" class="form-control form-control-sm" placeholder="Size (e.g. 64GB)" maxlength="40"></div>
+                    <div class="mb-2"><label class="visually-hidden" for="manualUsbNotes">Review notes</label><textarea id="manualUsbNotes" name="notes" class="form-control form-control-sm" placeholder="Review notes (optional)" rows="2" maxlength="1000"></textarea></div>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i>Add / Whitelist Device</button>
+                </form>
+            </div>
+        </details>
+    </div>
+    <div class="col-lg-8">
+        <section class="card h-100">
+            <div class="card-header">Filter USB Events</div>
+            <div class="card-body">
+                <form method="GET" class="row g-2">
+                    <div class="col-md-3"><input type="text" name="username" class="form-control form-control-sm" placeholder="User" value="{{ filters.username or '' }}"></div>
+                    <div class="col-md-3"><input type="date" name="date_from" class="form-control form-control-sm" value="{{ filters.date_from or '' }}"></div>
+                    <div class="col-md-3"><input type="date" name="date_to" class="form-control form-control-sm" value="{{ filters.date_to or '' }}"></div>
+                    <div class="col-md-3"><input type="text" name="computer_name" class="form-control form-control-sm" placeholder="PC / device" value="{{ filters.computer_name or '' }}"></div>
+                    <div class="col-md-3"><input type="text" name="usb_query" class="form-control form-control-sm" placeholder="USB name or serial" value="{{ filters.usb_query or '' }}"></div>
+                    <div class="col-md-3"><select name="event_type" class="form-select form-select-sm"><option value="">All event types</option>{% for et in event_types %}<option value="{{ et }}" {% if filters.event_type == et %}selected{% endif %}>{{ tr_display(et) }}</option>{% endfor %}</select></div>
+                    <div class="col-md-3"><select name="risk_level" class="form-select form-select-sm"><option value="">All risk levels</option>{% for rl in risk_levels %}<option value="{{ rl }}" {% if filters.risk_level == rl %}selected{% endif %}>{{ tr_display(rl) }}</option>{% endfor %}</select></div>
+                    <div class="col-md-3"><select name="device_status" class="form-select form-select-sm"><option value="">All device statuses</option>{% for ds in device_statuses %}<option value="{{ ds }}" {% if filters.device_status == ds %}selected{% endif %}>{{ tr_display(ds) }}</option>{% endfor %}</select></div>
+                    {% if filters.device_id %}<input type="hidden" name="device_id" value="{{ filters.device_id }}">{% endif %}
+                    <div class="col-12"><div class="app-actions"><button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i>Apply Filters</button><a href="{{ url_for('usb_monitoring') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-circle"></i>Clear</a></div></div>
+                </form>
+            </div>
+        </section>
+    </div>
+</div>
+
+<section class="card" id="usbEvents">
+    <div class="card-header usb-section-header"><span>USB Events</span>{% if filters.device_id %}<span class="small text-muted">Filtered to device #{{ filters.device_id }}</span>{% endif %}</div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0 usb-events-table">
+            <thead><tr><th>Time</th><th>User</th><th>Staff ID</th><th>Role / Dept</th><th>PC</th><th>Browser</th><th>Event</th><th>USB</th><th>Serial</th><th>Drive</th><th>Status</th><th>Rule</th><th>Anomaly</th><th>Hybrid</th><th>Risk</th><th>Alert</th></tr></thead>
+            <tbody>
+                {% for e in events %}
+                {% set current_status = e.device_status or ('whitelisted' if e.is_whitelisted else 'pending') %}
+                <tr>
+                    <td><small>{{ e.timestamp[:16].replace('T', ' ') }}</small></td><td data-no-translate>{{ e.username }}</td><td data-no-translate>{{ e.staff_id }}</td><td>{{ tr_display(e.role) }}<div class="small text-muted">{{ tr_display(e.department) }}</div></td>
+                    <td>{{ e.computer_name or '-' }}</td><td class="usb-browser-cell" title="{{ e.browser_info or '' }}">{{ (e.browser_info or '-')|truncate(42) }}</td>
+                    <td><span class="badge bg-secondary">{{ e.event_type|replace('_', ' ') }}</span></td><td>{{ e.usb_name }}</td><td><code>{{ e.usb_serial }}</code></td><td>{{ e.drive_letter or '-' }}</td>
+                    <td><span class="usb-device-status status-{{ current_status }}">{{ tr_display(current_status) }}</span></td><td>{{ e.rule_score if e.rule_score is not none else 'Legacy' }}</td><td>{% if e.anomaly_method == 'legacy_unverified' %}Legacy{% elif e.anomaly_score is not none %}{{ e.anomaly_score }}{% else %}N/A{% endif %}</td><td>{{ e.hybrid_score if e.hybrid_score is not none else 'Legacy' }}</td><td>{{ risk_badge(e.risk_level) }}</td><td>{% if e.alert_created %}<i class="bi bi-exclamation-triangle text-danger" title="Alert created"></i>{% else %}-{% endif %}</td>
+                </tr>
+                {% if e.explanation_json %}<tr class="explainability-table-row"><td colspan="16">{{ scoring_explanation(e) }}</td></tr>{% endif %}
+                {% else %}
+                <tr><td colspan="16" class="text-muted text-center py-4">No USB events match the selected filters.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+</div>
+{% endblock %}

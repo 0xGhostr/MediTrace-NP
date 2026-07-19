@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% from "macros.html" import sensitivity_pill %}
+{% block title %}Patient Records — MediTrace-NP{% endblock %}
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/patient-records.css') }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div class="pr-page">
+    <div id="usbLiveBanner" class="d-none"></div>
+
+    {# --- Page header (reference layout) --- #}
+    <header class="pr-page-header">
+        <div class="pr-page-header-left">
+            <div class="pr-page-icon" aria-hidden="true">
+                <i class="bi bi-file-earmark-medical"></i>
+            </div>
+            <div>
+                <h1 class="pr-page-title">Patient Records</h1>
+                <p class="pr-page-subtitle">Simulated records only — no real patient data</p>
+            </div>
+        </div>
+        <span class="pr-access-badge">
+            <i class="bi bi-shield-check"></i>
+            {% if current_user.is_admin_panel %}Full Access{% else %}Read Access{% endif %}
+        </span>
+    </header>
+
+    {# --- Policy banner --- #}
+    <div class="pr-policy-banner" role="note">
+        <i class="bi bi-info-circle"></i>
+        <div>
+            <strong>Access Policy:</strong>
+            Only permitted patient records should be accessed. All access activity is logged and monitored by the MediTrace-NP security system.
+        </div>
+    </div>
+
+    {# --- Search toolbar (existing GET search — unchanged backend) --- #}
+    <form method="GET" role="search" aria-label="Search and filter patient records">
+    <div class="pr-toolbar">
+        <div class="pr-search-wrap">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input
+                type="search"
+                name="search"
+                class="pr-search-input"
+                placeholder="Search by code, title, or department..."
+                value="{{ filters.search }}"
+                autocomplete="off"
+                aria-label="Search patient records"
+            >
+        </div>
+        <button
+            type="button"
+            class="pr-btn-filter"
+            data-bs-toggle="collapse"
+            data-bs-target="#prFiltersPanel"
+            aria-expanded="{{ 'true' if filters.category or filters.department or filters.sensitivity or filters.restricted else 'false' }}"
+            aria-controls="prFiltersPanel"
+        >
+            <i class="bi bi-funnel"></i>
+            Filters
+            <i class="bi bi-chevron-down" style="font-size:0.7rem"></i>
+        </button>
+        <button type="submit" class="pr-btn-search">
+            <i class="bi bi-search"></i>
+            Search
+        </button>
+    </div>
+
+    {# --- Client-side filters (UI only — no API change) --- #}
+    <div class="collapse{% if filters.category or filters.department or filters.sensitivity or filters.restricted %} show{% endif %}" id="prFiltersPanel">
+        <div class="pr-filters-panel">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-6 col-lg-3">
+                    <label for="prFilterCategory">Category</label>
+                    <select id="prFilterCategory" name="category" aria-label="Filter by category">
+                        <option value="">All categories</option>
+                        {% for c in categories %}
+                        <option value="{{ c }}"{% if filters.category == c %} selected{% endif %}>{{ tr_display(c) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <label for="prFilterDepartment">Department</label>
+                    <select id="prFilterDepartment" name="department" aria-label="Filter by department">
+                        <option value="">All departments</option>
+                        {% for d in departments %}
+                        <option value="{{ d }}"{% if filters.department == d %} selected{% endif %}>{{ tr_display(d) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <label for="prFilterSensitivity">Sensitivity</label>
+                    <select id="prFilterSensitivity" name="sensitivity" aria-label="Filter by sensitivity">
+                        <option value="">All sensitivity levels</option>
+                        {% for s in sensitivities %}
+                        <option value="{{ s }}"{% if filters.sensitivity == s %} selected{% endif %}>{{ tr_display(s) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <label for="prFilterRestricted">Classification</label>
+                    <select id="prFilterRestricted" name="restricted" aria-label="Filter by classification">
+                        <option value="">All classifications</option>
+                        <option value="restricted"{% if filters.restricted == 'restricted' %} selected{% endif %}>Restricted</option>
+                        <option value="standard"{% if filters.restricted == 'standard' %} selected{% endif %}>Standard</option>
+                    </select>
+                </div>
+                <div class="col-12 pr-filter-actions">
+                    <button type="submit" class="pr-btn-search"><i class="bi bi-funnel"></i>Apply filters</button>
+                    <a href="{{ url_for('patient_records') }}" class="pr-btn-filter">Clear filters</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    </form>
+
+    {# --- Records table card --- #}
+    <div class="pr-table-card">
+        <div class="pr-table-card-header">
+            <h2 class="pr-table-card-title">
+                Patient Records
+                <span class="pr-count-badge" id="prTotalCount">{{ pagination.total }}</span>
+            </h2>
+            <span class="pr-showing-text" id="prShowingCount">Showing {{ pagination.start }}-{{ pagination.end }} of {{ pagination.total }}</span>
+        </div>
+
+        {% if records %}
+        <div class="pr-table-wrap">
+            <table class="pr-table" id="prRecordsTable">
+                <thead>
+                    <tr>
+                        <th scope="col">Code</th>
+                        <th scope="col">Title</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Department</th>
+                        <th scope="col">Sensitivity</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                    <tr
+                        data-record-id="{{ r.id }}"
+                        data-category="{{ r.record_category }}"
+                        data-department="{{ r.department }}"
+                        data-sensitivity="{{ r.sensitivity_level }}"
+                        class="{% if r.is_restricted %}pr-row-restricted{% endif %}"
+                    >
+                        <td><span class="pr-code">{{ r.patient_code }}</span></td>
+                        <td><span class="pr-title">{{ r.record_title }}</span></td>
+                        <td class="pr-cell-muted">
+                            {{ r.record_category }}
+                            {% if r.is_restricted %}
+                            <span class="pr-restricted-badge">Restricted</span>
+                            {% endif %}
+                        </td>
+                        <td class="pr-cell-muted">{{ tr_display(r.department) }}</td>
+                        <td>{{ sensitivity_pill(r.sensitivity_level) }}</td>
+                        <td>
+                            <div class="pr-actions">
+                                <a
+                                    href="{{ url_for('record_detail', record_id=r.id) }}"
+                                    class="pr-btn-view"
+                                    aria-label="View record {{ r.patient_code }}"
+                                >
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                                <a
+                                    href="{{ url_for('record_export', record_id=r.id) }}"
+                                    class="pr-btn-export"
+                                    aria-label="Log export for {{ r.patient_code }}"
+                                    title="Log export to USB monitoring"
+                                >
+                                    <i class="bi bi-download"></i> Export
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="pr-empty">
+            <i class="bi bi-inbox"></i>
+            <p class="pr-empty-title">No records found</p>
+            <p class="mb-0">Try adjusting your search or filters, or contact an administrator.</p>
+        </div>
+        {% endif %}
+
+        {% if pagination.total_pages > 1 %}
+        <nav class="pr-pagination" aria-label="Patient record pages">
+            <a class="pr-page-link{% if not pagination.has_previous %} disabled{% endif %}"
+               {% if pagination.has_previous %}href="{{ url_for('patient_records', page=pagination.previous_page, search=filters.search, category=filters.category, department=filters.department, sensitivity=filters.sensitivity, restricted=filters.restricted) }}"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
+               aria-label="Previous page"><i class="bi bi-chevron-left"></i>Previous</a>
+            {% for page_number in page_numbers %}
+                {% if page_number is none %}
+                <span class="pr-page-ellipsis" aria-hidden="true">...</span>
+                {% else %}
+                <a class="pr-page-link{% if page_number == pagination.page %} active{% endif %}"
+                   href="{{ url_for('patient_records', page=page_number, search=filters.search, category=filters.category, department=filters.department, sensitivity=filters.sensitivity, restricted=filters.restricted) }}"
+                   {% if page_number == pagination.page %}aria-current="page"{% endif %}
+                   aria-label="Page {{ page_number }}">{{ page_number }}</a>
+                {% endif %}
+            {% endfor %}
+            <a class="pr-page-link{% if not pagination.has_next %} disabled{% endif %}"
+               {% if pagination.has_next %}href="{{ url_for('patient_records', page=pagination.next_page, search=filters.search, category=filters.category, department=filters.department, sensitivity=filters.sensitivity, restricted=filters.restricted) }}"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
+               aria-label="Next page">Next<i class="bi bi-chevron-right"></i></a>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/usb-monitor.js') }}"></script>
+{% endblock %}

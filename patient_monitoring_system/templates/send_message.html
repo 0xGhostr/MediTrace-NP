@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}Send Message{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Send Message', 'Compose an internal notice for a staff member', 'bi-send', 'Internal communication', 'bi-chat-square-text') }}
+<form method="POST" action="{{ url_for('send_admin_message') }}" class="card p-3 col-xl-8">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="mb-3">
+    <label class="form-label">Receiver</label>
+    <select name="receiver_id" class="form-select" required>
+      {% for u in users %}
+      <option value="{{ u.id }}">{{ u.full_name }} ({{ u.username }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Title</label>
+    <input name="title" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Message</label>
+    <textarea name="body" class="form-control" rows="4" required></textarea>
+  </div>
+  <div class="mb-3">
+    <label class="form-check-label"><input class="form-check-input me-2" type="checkbox" name="is_urgent">Mark as urgent</label>
+  </div>
+  <button class="btn btn-primary"><i class="bi bi-send"></i>Send Message</button>
+</form>
+</div>
+{% endblock %}

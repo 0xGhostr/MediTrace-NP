@@ -1,0 +1,510 @@
+.record-detail-page {
+    min-width: 0;
+}
+
+.record-breadcrumb-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.record-access-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--app-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.7rem;
+    white-space: nowrap;
+}
+
+.record-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.record-detail-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    min-width: 0;
+}
+
+.record-detail-heading h1 {
+    margin: 0 0 0.2rem;
+    color: var(--app-text);
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+}
+
+.record-detail-heading p {
+    margin: 0;
+    color: var(--app-muted);
+    font-size: 0.84rem;
+}
+
+.record-detail-card {
+    min-width: 0;
+}
+
+.record-classification {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(120px, 1fr)) auto;
+    align-items: center;
+    gap: 0;
+    padding: 1rem 1.2rem;
+    background: #fff;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.record-classification-item {
+    min-width: 0;
+    padding: 0 1rem;
+    border-right: 1px solid var(--app-border);
+}
+
+.record-classification-item:first-child {
+    padding-left: 0;
+}
+
+.record-classification-item:nth-child(4) {
+    border-right: 0;
+}
+
+.record-classification-item span {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: #94a3b8;
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.record-classification-item strong {
+    display: block;
+    overflow: hidden;
+    color: var(--app-text);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.record-sensitivity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    justify-self: end;
+    margin-left: 1rem;
+    padding: 0.38rem 0.7rem;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.sensitivity-low { color: var(--app-success) !important; }
+.sensitivity-medium { color: var(--app-warning) !important; }
+.sensitivity-high { color: var(--app-danger) !important; }
+.sensitivity-critical { color: #991b1b !important; font-weight: 800; }
+.record-sensitivity-badge.sensitivity-low { background: var(--app-success-soft); border-color: #bbf7d0; }
+.record-sensitivity-badge.sensitivity-medium { background: var(--app-warning-soft); border-color: #fde68a; }
+.record-sensitivity-badge.sensitivity-high { background: var(--app-danger-soft); border-color: #fecaca; }
+.record-sensitivity-badge.sensitivity-critical {
+    background: #fee2e2;
+    border-color: #991b1b;
+    box-shadow: 0 0 0 3px rgba(153, 27, 27, 0.08);
+}
+
+.record-detail-body {
+    padding: 1.25rem;
+}
+
+.record-risk-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    margin-bottom: 1.2rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+
+.record-risk-banner > i {
+    margin-top: 0.1rem;
+    flex: 0 0 auto;
+}
+
+.record-risk-banner > div {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.record-risk-divider {
+    width: 1px;
+    height: 14px;
+    background: currentColor;
+    opacity: 0.3;
+}
+
+.record-risk-normal,
+.record-risk-low { color: #166534; background: var(--app-success-soft); border-color: #bbf7d0; }
+.record-risk-medium { color: #92400e; background: var(--app-warning-soft); border-color: #fde68a; }
+.record-risk-high { color: #9a3412; background: #fff7ed; border-color: #fed7aa; }
+.record-risk-critical { color: #991b1b; background: var(--app-danger-soft); border-color: #fecaca; }
+.record-alert-result { color: var(--app-danger); }
+
+.record-medical-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2.05fr) minmax(280px, 1fr);
+    gap: 1.25rem;
+    min-width: 0;
+}
+
+.record-medical-layout.without-vitals {
+    grid-template-columns: 1fr;
+}
+
+.record-medical-content,
+.record-vitals-panel {
+    min-width: 0;
+}
+
+.record-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.95rem;
+    color: #0f3d75;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.record-section-heading i {
+    color: var(--app-primary);
+    font-size: 0.95rem;
+}
+
+.record-patient-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+}
+
+.record-patient-grid > div {
+    min-width: 0;
+    padding: 0.8rem 1rem 0.8rem 0;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.record-patient-grid > div:nth-child(2n) {
+    padding-left: 1rem;
+}
+
+.record-patient-grid dt,
+.record-notes-section h3,
+.record-treatment-section h3,
+.record-text-section h3 {
+    margin: 0 0 0.3rem;
+    color: #94a3b8;
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.record-patient-grid dd {
+    margin: 0;
+    color: var(--app-text);
+    font-size: 0.82rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.record-notes-section,
+.record-treatment-section,
+.record-text-section {
+    margin-top: 1rem;
+}
+
+.record-notes-panel,
+.record-text-section p {
+    margin: 0;
+    color: var(--app-text-soft);
+    font-size: 0.8rem;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.record-notes-panel {
+    padding: 0.85rem 1rem;
+    background: #f8fafc;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+}
+
+.record-notes-panel.is-empty,
+.record-empty-copy {
+    color: var(--app-muted);
+}
+
+.record-treatment-list {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.record-treatment-list span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.32rem 0.58rem;
+    color: #1e3a8a;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.record-treatment-list i {
+    color: var(--app-primary);
+}
+
+.record-empty-copy {
+    margin: 0;
+    font-size: 0.78rem;
+}
+
+.record-general-content {
+    padding: 0.85rem 1rem;
+    background: var(--app-primary-soft);
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+}
+
+.record-vitals-panel {
+    padding-left: 1.2rem;
+    border-left: 1px solid var(--app-border);
+}
+
+.record-vitals-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+}
+
+.record-vital-card {
+    position: relative;
+    min-width: 0;
+    padding: 0.85rem;
+    border: 1px solid;
+    border-radius: 10px;
+}
+
+.record-vital-card > i {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.record-vital-card strong {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.record-vital-card span {
+    display: block;
+    color: var(--app-muted);
+    font-size: 0.65rem;
+    line-height: 1.35;
+}
+
+.vital-heart { color: #dc2626; background: #fff7f7; border-color: #fecaca; }
+.vital-pressure { color: #ea580c; background: #fff7ed; border-color: #fed7aa; }
+.vital-temperature { color: #ca8a04; background: #fefce8; border-color: #fef08a; }
+.vital-oxygen { color: var(--app-primary); background: var(--app-primary-soft); border-color: #bfdbfe; }
+
+.record-vitals-disclaimer {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin: 0.75rem 0 0;
+    color: var(--app-muted);
+    font-size: 0.65rem;
+    line-height: 1.45;
+}
+
+.record-detail-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1.2rem;
+    background: #fff;
+    border-top: 1px solid var(--app-border);
+}
+
+.record-detail-actions,
+.record-audit-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.record-detail-actions form {
+    margin: 0;
+}
+
+.record-audit-summary {
+    justify-content: flex-end;
+    color: var(--app-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.65rem;
+}
+
+.record-audit-summary > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.record-audit-summary > span + span::before {
+    margin-right: 0.2rem;
+    color: var(--app-border-strong);
+    content: '·';
+}
+
+.record-audit-summary i {
+    color: var(--app-success);
+    font-size: 0.55rem;
+}
+
+.record-device {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 1199.98px) {
+    .record-classification {
+        grid-template-columns: repeat(4, minmax(100px, 1fr));
+    }
+
+    .record-sensitivity-badge {
+        grid-column: 1 / -1;
+        justify-self: start;
+        margin: 0.85rem 0 0;
+    }
+
+    .record-medical-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .record-vitals-panel {
+        padding: 1rem 0 0;
+        border-top: 1px solid var(--app-border);
+        border-left: 0;
+    }
+
+    .record-detail-footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .record-audit-summary {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .record-breadcrumb-row,
+    .record-detail-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .record-access-time {
+        white-space: normal;
+    }
+
+    .record-classification {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .record-classification-item {
+        padding: 0.7rem;
+        border-right: 0;
+        border-bottom: 1px solid var(--app-border);
+    }
+
+    .record-classification-item:first-child {
+        padding-left: 0.7rem;
+    }
+
+    .record-classification-item:nth-child(odd) {
+        border-right: 1px solid var(--app-border);
+    }
+
+    .record-detail-body {
+        padding: 1rem;
+    }
+
+    .record-vitals-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575.98px) {
+    .record-detail-heading h1 {
+        font-size: 1.15rem;
+    }
+
+    .record-patient-grid,
+    .record-vitals-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .record-patient-grid > div,
+    .record-patient-grid > div:nth-child(2n) {
+        padding: 0.7rem 0;
+    }
+
+    .record-detail-actions,
+    .record-detail-actions form,
+    .record-detail-actions .btn {
+        width: 100%;
+    }
+
+    .record-audit-summary {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .record-audit-summary > span + span::before {
+        display: none;
+    }
+}

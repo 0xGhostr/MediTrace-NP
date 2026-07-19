@@ -1,0 +1,63 @@
+.record-form-card {
+    width: 100%;
+    max-width: 1280px;
+}
+
+.structured-record-fields {
+    display: grid;
+    gap: 1rem;
+}
+
+.record-form-section {
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+}
+
+.record-form-section-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    margin-bottom: 0.9rem;
+}
+
+.record-form-section-heading > i {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 32px;
+    color: var(--app-primary);
+    background: var(--app-primary-soft);
+    border-radius: 8px;
+}
+
+.record-form-section-heading h3 {
+    margin: 0;
+    color: var(--app-text);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.record-form-section-heading p {
+    margin: 0.15rem 0 0;
+    color: var(--app-muted);
+    font-size: 0.72rem;
+}
+
+.structured-record-fields.is-compact .record-form-section {
+    padding: 0.85rem;
+    background: var(--app-bg);
+}
+
+.structured-record-fields.is-compact .record-form-section-heading p {
+    display: none;
+}
+
+@media (max-width: 575.98px) {
+    .record-form-section {
+        padding: 0.85rem;
+    }
+}

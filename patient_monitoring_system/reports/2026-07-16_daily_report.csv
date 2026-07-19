@@ -1,0 +1,24 @@
+Daily Patient Record Access Report
+Date,2026-07-16
+Generated At,2026-07-16T18:10:00.018686
+
+Summary Statistics
+Total Patient Record Accesses,1
+Total Active Users,1
+Total Alerts,1
+Critical Alerts,0
+High Alerts,1
+Medium Alerts,0
+Normal Events,0
+
+Staff ID,Username,Role,Department,Device,Records Accessed,Record IDs,Categories,Sensitivity Levels,Risk Levels,Alerts Generated,Admin Review Status
+SAD001,superadmin,Super Admin,Administration,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",1,37,General Medical,Low,High,1,Pending Review
+
+USB Monitoring Summary
+Total USB Events,0
+Unknown USB Insertions,0
+Whitelisted USB Insertions,0
+USB Critical Alerts,0
+
+USB Users Involved (no patient details)
+Username,Staff ID,PC/Device,USB Serial(s),Event Count

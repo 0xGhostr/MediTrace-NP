@@ -1,0 +1,138 @@
+{% macro section_header(icon, title) %}
+<div class="sidebar-section-header">
+    <i class="bi {{ icon }}"></i>
+    <span>{{ _(title) }}</span>
+</div>
+{% endmacro %}
+
+{% macro admin_sidebar() %}
+<ul class="nav flex-column sidebar-nav">
+    {{ section_header('bi-speedometer2', 'Dashboard') }}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('admin_dashboard') }}" href="{{ url_for('admin_dashboard') }}">
+            <i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span>
+        </a>
+    </li>
+
+    {{ section_header('bi-people-fill', 'Administration') }}
+    {% if current_user.is_super_admin %}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('manage_admins') }}" href="{{ url_for('manage_admins') }}">
+            <i class="bi bi-person-gear"></i><span>Manage Admins</span>
+        </a>
+    </li>
+    {% endif %}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('pending_users') }}" href="{{ url_for('pending_users') }}">
+            <i class="bi bi-person-plus"></i><span>Pending Registrations</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('user_management', 'user_activity') }}" href="{{ url_for('user_management') }}">
+            <i class="bi bi-people"></i><span>User Management</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('recovery_requests', 'recovery_request_detail') }}" href="{{ url_for('recovery_requests') }}">
+            <i class="bi bi-person-lock"></i><span>Account Recovery</span>
+            {% if open_recovery_request_count > 0 %}<span class="badge bg-danger ms-auto">{{ open_recovery_request_count }}</span>{% endif %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('admin_create_user') }}" href="{{ url_for('admin_create_user') }}">
+            <i class="bi bi-person-fill-add"></i><span>Create User (Emergency)</span>
+        </a>
+    </li>
+
+    {{ section_header('bi-hospital', 'Patient Management') }}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('patient_data_management') }}" href="{{ url_for('patient_data_management') }}">
+            <i class="bi bi-database-add"></i><span>Patient Data Management</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('patient_records', 'record_detail') }}" href="{{ url_for('patient_records') }}">
+            <i class="bi bi-file-medical"></i><span>Patient Records</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('simulated_patient_data') }}" href="{{ url_for('simulated_patient_data') }}">
+            <i class="bi bi-plus-square"></i><span>Add Simulated Data</span>
+        </a>
+    </li>
+
+    {{ section_header('bi-shield-lock', 'Security & Monitoring') }}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('admin_events') }}" href="{{ url_for('admin_events') }}">
+            <i class="bi bi-journal-text"></i><span>Access Logs</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('admin_alerts') }}" href="{{ url_for('admin_alerts') }}">
+            <i class="bi bi-exclamation-triangle"></i><span>Alerts</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('usb_monitoring') }}" href="{{ url_for('usb_monitoring') }}">
+            <i class="bi bi-usb-drive"></i><span>USB Monitoring</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('security_management', 'retrain_behaviour_model') }}" href="{{ url_for('security_management') }}">
+            <i class="bi bi-shield-check"></i><span>Security Management</span>
+        </a>
+    </li>
+
+    {{ section_header('bi-bar-chart-line', 'Reports & Analytics') }}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('admin_reports', 'view_report') }}" href="{{ url_for('admin_reports') }}">
+            <i class="bi bi-file-earmark-bar-graph"></i><span>Reports</span>
+        </a>
+    </li>
+
+    {{ section_header('bi-chat-dots', 'Communication') }}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('admin_messages') }}" href="{{ url_for('admin_messages') }}">
+            <i class="bi bi-chat-left-text"></i><span>Messages</span>
+        </a>
+    </li>
+</ul>
+{% endmacro %}
+
+{% macro staff_sidebar() %}
+<ul class="nav flex-column sidebar-nav">
+    {{ section_header('bi-speedometer2', 'Dashboard') }}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('staff_dashboard') }}" href="{{ url_for('staff_dashboard') }}">
+            <i class="bi bi-house-door"></i><span>Staff Dashboard</span>
+        </a>
+    </li>
+
+    {{ section_header('bi-hospital', 'Patient Management') }}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('patient_records', 'record_detail') }}" href="{{ url_for('patient_records') }}">
+            <i class="bi bi-file-medical"></i><span>Patient Records</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('simulated_patient_data') }}" href="{{ url_for('simulated_patient_data') }}">
+            <i class="bi bi-plus-square"></i><span>Add Simulated Data</span>
+        </a>
+    </li>
+
+    {{ section_header('bi-chat-dots', 'Communication') }}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('user_messages') }}" href="{{ url_for('user_messages') }}">
+            <i class="bi bi-chat-dots"></i><span>Messages</span>
+            {% if unread_message_count > 0 %}<span class="badge bg-danger ms-1">{{ unread_message_count }}</span>{% endif %}
+        </a>
+    </li>
+
+    {{ section_header('bi-person-circle', 'Account') }}
+    <li class="nav-item">
+        <a class="nav-link {{ nav_active('staff_profile') }}" href="{{ url_for('staff_profile') }}">
+            <i class="bi bi-person"></i><span>Profile</span>
+        </a>
+    </li>
+</ul>
+{% endmacro %}

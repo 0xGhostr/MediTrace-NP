@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}{{ _('Edit Account') }} - {{ user.full_name }}{% endblock %}
+{% block extra_head %}<link href="{{ url_for('static', filename='css/account-recovery.css') }}" rel="stylesheet">{% endblock %}
+{% block content %}
+<div class="app-page account-edit-page">
+  {{ page_header('Edit Account', 'Update an institutional account directly without creating a recovery request', 'bi-person-gear', tr_display(user.approval_status), 'bi-shield-lock') }}
+  <div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>Approval, suspension, lockout, and active status are not changed by this form. Username or password changes invalidate existing sessions.</div>
+  <form method="POST" class="card recovery-action-card" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="card-header"><strong>{{ user.full_name }} · {{ user.staff_id }}</strong></div>
+    <div class="card-body row g-3">
+      <div class="col-md-6"><label class="form-label" for="editFullName">Full name</label><input class="form-control" id="editFullName" name="full_name" value="{{ user.full_name }}" maxlength="100" required></div>
+      <div class="col-md-3"><label class="form-label" for="editStaffId">Staff ID</label><input class="form-control" id="editStaffId" name="staff_id" value="{{ user.staff_id }}" maxlength="20" required></div>
+      <div class="col-md-3"><label class="form-label" for="editUsername">Username</label><input class="form-control" id="editUsername" name="username" value="{{ user.username }}" maxlength="50" required></div>
+      <div class="col-md-6"><label class="form-label" for="editEmail">Email</label><input class="form-control" type="email" id="editEmail" name="email" value="{{ user.email }}" maxlength="254" required></div>
+      <div class="col-md-3"><label class="form-label" for="editRole">Role</label><select class="form-select" id="editRole" name="role" required>{% for role in roles %}<option value="{{ role }}" {% if user.role == role %}selected{% endif %}>{{ tr_display(role) }}</option>{% endfor %}</select></div>
+      <div class="col-md-3"><label class="form-label" for="editDepartment">Department</label><select class="form-select" id="editDepartment" name="department" required>{% for department in departments %}<option value="{{ department }}" {% if user.department == department %}selected{% endif %}>{{ tr_display(department) }}</option>{% endfor %}</select></div>
+      <div class="col-md-3"><label class="form-label" for="editWorkStart">Work start</label><input class="form-control" type="time" id="editWorkStart" name="work_start" value="{{ user.work_start }}" required></div>
+      <div class="col-md-3"><label class="form-label" for="editWorkEnd">Work end</label><input class="form-control" type="time" id="editWorkEnd" name="work_end" value="{{ user.work_end }}" required></div>
+      <div class="col-12"><hr><h3 class="recovery-form-section-title">Optional Secure Password Reset</h3><p class="text-muted small">Leave both fields empty to preserve the current password. A reset creates a temporary password and forces rotation at next login.</p></div>
+      <div class="col-md-6"><label class="form-label" for="editTemporaryPassword">Temporary password</label><input class="form-control" type="password" id="editTemporaryPassword" name="temporary_password" maxlength="128" autocomplete="new-password"><div class="form-text">At least {{ password_min_length }} characters with uppercase, lowercase, number, and special character.</div></div>
+      <div class="col-md-6"><label class="form-label" for="editConfirmTemporaryPassword">Confirm temporary password</label><input class="form-control" type="password" id="editConfirmTemporaryPassword" name="confirm_temporary_password" maxlength="128" autocomplete="new-password"></div>
+      <div class="col-12"><hr><h3 class="recovery-form-section-title">Administrator Confirmation</h3></div>
+      <div class="col-md-6"><label class="form-label" for="editAdminPassword">Your administrator password</label><input class="form-control" type="password" id="editAdminPassword" name="admin_password" maxlength="128" autocomplete="current-password" required><div class="form-text">Required for every direct account edit. This password is verified only and is never logged.</div></div>
+      <div class="col-12 d-flex gap-2 justify-content-end"><a href="{{ url_for('user_management') }}" class="btn btn-outline-secondary">Cancel</a><button class="btn btn-primary"><i class="bi bi-shield-check"></i>Save Account Securely</button></div>
+    </div>
+  </form>
+</div>
+{% endblock %}

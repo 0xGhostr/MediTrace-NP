@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale|default('en') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ APP_NAME|default('MediTrace-Np') }}{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/explainability.css') }}" rel="stylesheet">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="{% if current_user.is_authenticated %}has-sidebar{% endif %}">
+    {% set language_return_path = request.full_path if request.query_string else request.path %}
+    {% macro language_switch(extra_class='') %}
+    <form method="POST" action="{{ url_for('change_language') }}" class="language-switch {{ extra_class }}" aria-label="{{ _('Switch language') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ language_return_path }}">
+        <button type="submit" name="language" value="en" class="language-option{% if current_locale == 'en' %} active{% endif %}" lang="en" aria-pressed="{{ 'true' if current_locale == 'en' else 'false' }}">English</button>
+        <span class="language-divider" aria-hidden="true">|</span>
+        <button type="submit" name="language" value="ne" class="language-option{% if current_locale == 'ne' %} active{% endif %}" lang="ne" aria-pressed="{{ 'true' if current_locale == 'ne' else 'false' }}">नेपाली</button>
+    </form>
+    {% endmacro %}
+    {% if current_user.is_authenticated %}
+    {% from "macros.html" import user_initials %}
+    {% set avatar_name = current_user.full_name|default('', true)|trim %}
+    {% if not avatar_name %}{% set avatar_name = current_user.display_name|default('', true)|trim %}{% endif %}
+    {% if not avatar_name %}{% set avatar_name = current_user.username|default('User', true)|trim %}{% endif %}
+    <button type="button" class="btn btn-dark sidebar-toggle-btn" id="sidebarToggle" aria-label="{{ _('Toggle navigation') }}">
+        <i class="bi bi-list"></i>
+    </button>
+    <div class="authenticated-header-actions" aria-label="{{ _('Current user') }}">
+        {{ language_switch() }}
+        <span
+            class="header-user-avatar"
+            role="img"
+            aria-label="{{ _('Signed in as {name}', name=avatar_name) }}"
+            title="{{ avatar_name }}"
+        >{{ user_initials(current_user) }}</span>
+    </div>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <img src="{{ url_for('static', filename='images/meditrace-logo.svg') }}" alt="{{ APP_NAME|default('MediTrace-Np') }}" class="brand-logo">
+            <div>
+                <h5 class="text-white mb-0 brand-title">{{ APP_NAME|default('MediTrace-Np') }}</h5>
+                <small class="text-muted">Healthcare Security Monitor</small>
+            </div>
+        </div>
+        <div class="sidebar-nav-scroll">
+            {% import "sidebar_macros.html" as sidebar with context %}
+            {% if current_user.is_admin_panel %}
+                {{ sidebar.admin_sidebar() }}
+            {% else %}
+                {{ sidebar.staff_sidebar() }}
+            {% endif %}
+        </div>
+        <div class="sidebar-footer">
+            <div class="sidebar-user-summary">
+                <span class="sidebar-user-avatar" aria-hidden="true">{{ current_user.full_name[:1]|upper }}</span>
+                <div class="sidebar-user-copy">
+                    <div class="small text-muted sidebar-user-name">{{ current_user.full_name }}</div>
+                    <div class="small text-muted sidebar-user-role">{{ tr_display(current_user.role) }}</div>
+                </div>
+            </div>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm mt-2 w-100 fw-bold">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+        </div>
+    </aside>
+    <main class="main-content" id="mainContent">
+    {% else %}
+    {{ language_switch('public-language-switch') }}
+    <main class="auth-main container py-4">
+    {% endif %}
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-stack" aria-live="polite">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ _('Dismiss notification') }}"></button>
+            </div>
+            {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+
+    {% if current_user.is_authenticated %}
+    </main>
+    {% else %}
+    </main>
+    {% endif %}
+
+    <script>
+      window.MediTraceI18n = Object.freeze({
+        locale: {{ current_locale|tojson }},
+        messages: {{ js_i18n|tojson }}
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/password-toggle.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/localized-ui.js') }}"></script>
+
+    {% if usb_warning is defined and usb_warning %}
+    <div class="modal fade" id="usbAlertModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-{{ 'danger' if usb_warning.device_status != 'whitelisted' else 'success' }}">
+                <div class="modal-header bg-{{ 'danger' if usb_warning.device_status != 'whitelisted' else 'success' }} text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-usb-drive-fill"></i>
+                        {% if usb_warning.event_type == 'blocked_export' %}
+                        USB Export Denied
+                        {% elif usb_warning.event_type == 'export_to_usb' %}
+                        USB Export Alert
+                        {% elif usb_warning.device_status == 'blocked' %}
+                        Blocked USB Detected
+                        {% elif usb_warning.device_status == 'pending' %}
+                        USB Pending Review
+                        {% else %}
+                        USB Connected
+                        {% endif %}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>{{ _(usb_warning.message) }}</p>
+                    <ul class="list-unstyled small mb-0">
+                        <li><strong>Device:</strong> {{ usb_warning.usb_name }}</li>
+                        <li><strong>Serial:</strong> <code>{{ usb_warning.usb_serial }}</code></li>
+                        <li><strong>Drive:</strong> {{ usb_warning.drive_letter or 'N/A' }}</li>
+                        <li><strong>Status:</strong> {{ tr_display(usb_warning.device_status) }}</li>
+                        <li><strong>Risk:</strong> {{ tr_display(usb_warning.risk_level) }}</li>
+                        {% if usb_warning.record_code %}
+                        <li><strong>Record:</strong> {{ usb_warning.record_code }}</li>
+                        {% endif %}
+                    </ul>
+                    {% if usb_warning.alert_created %}
+                    <div class="alert alert-warning mt-3 mb-0 py-2 small">
+                        <i class="bi bi-exclamation-triangle"></i> Administrators have been notified.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    {% if current_user.is_admin_panel %}
+                    <a href="{{ url_for('usb_monitoring') }}" class="btn btn-outline-primary btn-sm">USB Monitoring</a>
+                    {% endif %}
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Acknowledge</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        new bootstrap.Modal(document.getElementById('usbAlertModal')).show();
+      });
+    </script>
+    {% endif %}
+
+    {% if current_user.is_authenticated and unread_messages and not current_user.is_admin_panel %}
+    <div class="modal fade" id="messagePopupModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">You have a new message from Admin</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <h6 data-no-translate>{{ unread_messages[0].title }}</h6>
+            <p class="mb-2" data-no-translate>{{ unread_messages[0].body }}</p>
+            {% if unread_messages[0].is_urgent %}
+            <span class="badge bg-danger">Urgent</span>
+            {% endif %}
+          </div>
+          <div class="modal-footer">
+            <form method="POST" action="{{ url_for('user_mark_message_read', message_id=unread_messages[0].id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-primary">Mark as Read</button>
+            </form>
+            <a href="{{ url_for('user_messages') }}" class="btn btn-outline-secondary">Open Messages</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const usbModal = document.getElementById('usbAlertModal');
+        if (!usbModal) {
+          new bootstrap.Modal(document.getElementById('messagePopupModal')).show();
+        }
+      });
+    </script>
+    {% endif %}
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

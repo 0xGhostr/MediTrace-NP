@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}Manage Admins{% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Manage Admin Accounts', 'Create, edit, reset or remove administrator accounts', 'bi-person-gear', 'Super Admin only', 'bi-shield-lock') }}
+
+<div class="card mb-4">
+  <div class="card-header"><span>Create New Admin</span><span class="status-pill status-neutral"><i class="bi bi-shield-plus"></i>Privileged account</span></div>
+  <div class="card-body">
+    <form method="POST" class="row g-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="create">
+      <div class="col-md-3"><input name="full_name" class="form-control" placeholder="Full name" required></div>
+      <div class="col-md-2"><input name="staff_id" class="form-control" placeholder="Staff ID" required></div>
+      <div class="col-md-2"><input name="email" type="email" class="form-control" placeholder="Email" required></div>
+      <div class="col-md-2"><input name="username" class="form-control" placeholder="Username" required></div>
+      <div class="col-md-2">
+        <div class="password-input-group">
+          <input name="password" type="password" class="form-control" id="new_admin_pw" placeholder="Temporary password" minlength="12" maxlength="128" autocomplete="new-password" required>
+          <button type="button" class="password-toggle-eye" data-toggle-password data-target="new_admin_pw"><i class="bi bi-eye"></i></button>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <select name="department" class="form-select">
+          {% for d in departments %}<option value="{{ d }}">{{ tr_display(d) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1"><input name="work_start" class="form-control" value="08:00"></div>
+      <div class="col-md-1"><input name="work_end" class="form-control" value="17:00"></div>
+      <div class="col-md-2"><button class="btn btn-primary w-100">Create Admin</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span>Existing Admins</span><span class="badge bg-primary">{{ admins|length }}</span></div>
+  <div class="table-responsive"><table class="table table-sm mb-0">
+    <thead>
+      <tr><th>Name</th><th>Username</th><th>Staff ID</th><th>Registered</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for a in admins %}
+      <tr>
+        <td data-no-translate>{{ a.full_name }}</td>
+        <td data-no-translate>{{ a.username }}</td>
+        <td>{{ a.staff_id }}</td>
+        <td>{{ a.created_at_display }}</td>
+        <td><div class="table-actions">
+          <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#adminEdit{{ a.id }}">Edit</button>
+          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#adminPw{{ a.id }}">Password</button>
+          <form method="POST" class="d-inline" data-confirm="Delete this admin account?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="user_id" value="{{ a.id }}">
+            <button class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </div></td>
+      </tr>
+      <tr class="collapse edit-panel" id="adminEdit{{ a.id }}">
+        <td colspan="5">
+          <form method="POST" class="row g-2 p-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" name="user_id" value="{{ a.id }}">
+            <div class="col-md-2"><input name="full_name" class="form-control form-control-sm" value="{{ a.full_name }}"></div>
+            <div class="col-md-2"><input name="staff_id" class="form-control form-control-sm" value="{{ a.staff_id }}"></div>
+            <div class="col-md-2"><input name="email" class="form-control form-control-sm" value="{{ a.email }}"></div>
+            <div class="col-md-2"><input name="username" class="form-control form-control-sm" value="{{ a.username }}"></div>
+            <div class="col-md-2"><input name="work_start" class="form-control form-control-sm" value="{{ a.work_start }}"></div>
+            <div class="col-md-2"><input name="work_end" class="form-control form-control-sm" value="{{ a.work_end }}"></div>
+            <div class="col-md-3"><input name="admin_password" type="password" class="form-control form-control-sm" placeholder="Your Super Admin password" maxlength="128" autocomplete="current-password" required></div>
+            <div class="col-md-2"><button class="btn btn-sm btn-success">Save</button></div>
+          </form>
+        </td>
+      </tr>
+      <tr class="collapse edit-panel" id="adminPw{{ a.id }}">
+        <td colspan="5">
+          <form method="POST" class="row g-2 p-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="password">
+            <input type="hidden" name="user_id" value="{{ a.id }}">
+            <div class="col-md-4">
+              <div class="password-input-group">
+                <input name="new_password" type="password" class="form-control form-control-sm" id="adminpw{{ a.id }}" placeholder="Temporary password" minlength="12" maxlength="128" autocomplete="new-password" required>
+                <button type="button" class="password-toggle-eye" data-toggle-password data-target="adminpw{{ a.id }}"><i class="bi bi-eye"></i></button>
+              </div>
+            </div>
+            <div class="col-md-4"><input name="admin_password" type="password" class="form-control form-control-sm" placeholder="Your Super Admin password" maxlength="128" autocomplete="current-password" required></div>
+            <div class="col-md-2"><button class="btn btn-sm btn-warning">Set Temporary Password</button></div>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-muted text-center">No Admin accounts yet. Create one above.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+</div>
+{% endblock %}

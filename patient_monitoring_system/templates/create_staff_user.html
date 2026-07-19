@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% from "macros.html" import page_header %}
+{% block title %}Create User (Emergency){% endblock %}
+{% block content %}
+<div class="app-page">
+{{ page_header('Create Staff Account', 'Emergency pre-approved account creation for authorized administrators', 'bi-person-fill-add', 'Immediate access', 'bi-lightning-charge') }}
+<div class="alert alert-warning">
+  Use only when a staff member cannot self-register. The account is created <strong>pre-approved</strong>, but its temporary password must be changed at the first login.
+</div>
+
+<div class="card col-xl-10">
+  <div class="card-header">Staff account details</div>
+  <div class="card-body">
+    <form method="POST" class="row g-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="col-md-6"><label class="form-label">Full Name</label><input name="full_name" class="form-control" required></div>
+      <div class="col-md-6"><label class="form-label">Staff ID</label><input name="staff_id" class="form-control" required></div>
+      <div class="col-md-6"><label class="form-label">Email</label><input name="email" type="email" class="form-control" required></div>
+      <div class="col-md-6"><label class="form-label">Username</label><input name="username" class="form-control" required></div>
+      <div class="col-md-6">
+        <label class="form-label">Temporary Password</label>
+        <div class="password-input-group">
+          <input name="password" type="password" class="form-control" id="emergency_pw" required minlength="12" maxlength="128" autocomplete="new-password">
+          <button type="button" class="password-toggle-eye" data-toggle-password data-target="emergency_pw"><i class="bi bi-eye"></i></button>
+        </div>
+        <div class="form-text">At least 12 characters with uppercase, lowercase, number, and special character.</div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Role</label>
+        <select name="role" class="form-select" required>
+          {% for r in roles %}<option value="{{ r }}">{{ tr_display(r) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Department</label>
+        <select name="department" class="form-select" required>
+          {% for d in departments %}<option value="{{ d }}">{{ tr_display(d) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3"><label class="form-label">Work Start</label><input name="work_start" class="form-control" value="08:00"></div>
+      <div class="col-md-3"><label class="form-label">Work End</label><input name="work_end" class="form-control" value="17:00"></div>
+      <div class="col-12">
+        <div class="app-actions"><button type="submit" class="btn btn-primary"><i class="bi bi-person-check"></i>Create Approved Account</button>
+        <a href="{{ url_for('user_management') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i>Back to User Management</a></div>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}
