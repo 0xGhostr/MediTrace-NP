@@ -53,6 +53,10 @@
         <span>Created</span>
         <strong>{{ record.created_at[:10] }}</strong>
       </div>
+      <div class="record-classification-item">
+        <span>{{ _('Record Status') }}</span>
+        <strong><span class="record-status-badge status-{{ current_record_status }}">{{ _(record_status_labels[current_record_status]) }}</span></strong>
+      </div>
       <span class="record-sensitivity-badge sensitivity-{{ sensitivity_key(record.sensitivity_level) }}">
         <i class="bi bi-shield-exclamation" aria-hidden="true"></i>{{ tr_display(sensitivity_label(record.sensitivity_level)) }} {{ _('record') }}
       </span>
@@ -83,6 +87,42 @@
         </div>
       </section>
       {{ scoring_explanation(result, true) }}
+      {% endif %}
+
+      {% if current_user.is_admin_panel and current_record_status != 'active' %}
+      <section class="record-status-notice" aria-labelledby="recordStatusNoticeTitle">
+        <i class="bi bi-archive" aria-hidden="true"></i>
+        <div>
+          <h2 id="recordStatusNoticeTitle">{{ _('This record is not active') }}</h2>
+          <dl>
+            <div><dt>{{ _('Status') }}</dt><dd>{{ _(record_status_labels[current_record_status]) }}</dd></div>
+            <div><dt>{{ _('Reason') }}</dt><dd data-no-translate>{{ record.status_reason or _('Not recorded') }}</dd></div>
+            {% if status_history %}
+            <div><dt>{{ _('Changed by') }}</dt><dd data-no-translate>{{ status_history[0].changed_by_username }} ({{ status_history[0].changed_by_role }})</dd></div>
+            <div><dt>{{ _('Changed at') }}</dt><dd>{{ status_history[0].changed_at|nepal_datetime }}</dd></div>
+            {% else %}
+            <div><dt>{{ _('Changed by') }}</dt><dd>{{ _('System migration (legacy state)') }}</dd></div>
+            <div><dt>{{ _('Changed at') }}</dt><dd>{{ record.status_changed_at|nepal_datetime }}</dd></div>
+            {% endif %}
+          </dl>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if current_user.is_admin_panel %}
+      <section class="record-status-manager" aria-labelledby="recordStatusManagerTitle">
+        <div>
+          <h2 id="recordStatusManagerTitle"><i class="bi bi-shield-lock" aria-hidden="true"></i>{{ _('Record lifecycle controls') }}</h2>
+          <p>{{ _('Records are retained permanently. Status changes require a reason and are written to immutable audit history.') }}</p>
+        </div>
+        {% if available_statuses %}
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#recordStatusModal">
+          <i class="bi bi-arrow-repeat" aria-hidden="true"></i>{{ _('Change Status') }}
+        </button>
+        {% else %}
+        <span class="record-status-terminal"><i class="bi bi-lock" aria-hidden="true"></i>{{ _('No normal status transition is available') }}</span>
+        {% endif %}
+      </section>
       {% endif %}
 
       <div class="record-medical-layout{% if not has_vitals %} without-vitals{% endif %}">
@@ -179,17 +219,9 @@
     <footer class="record-detail-footer">
       <div class="record-detail-actions">
         {% if export_allowed %}<a href="{{ url_for('record_export', record_id=record.id) }}" class="btn btn-primary"
-           title="Export is logged; USB transfer is auto-monitored if a drive is connected">
-          <i class="bi bi-usb-drive" aria-hidden="true"></i>Log Export / Copy to USB
+           title="{{ _('Export activity is logged and security monitored') }}">
+          <i class="bi bi-download" aria-hidden="true"></i>{{ _('Log Export') }}
         </a>{% endif %}
-        {% if not current_user.is_admin_panel %}
-        <form method="POST" action="{{ url_for('record_delete', record_id=record.id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-outline-danger" data-confirm="This will log a delete attempt. Continue?">
-            <i class="bi bi-trash3" aria-hidden="true"></i>Attempt Delete (Demo)
-          </button>
-        </form>
-        {% endif %}
         <a href="{{ url_for('patient_records') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i>Back</a>
       </div>
 
@@ -204,6 +236,41 @@
     </footer>
   </article>
 </div>
+
+{% if current_user.is_admin_panel and available_statuses %}
+<div class="modal fade" id="recordStatusModal" tabindex="-1" aria-labelledby="recordStatusModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content record-status-modal">
+      <form method="POST" action="{{ url_for('record_status_change', record_id=record.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="confirmed" value="1">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="recordStatusModalTitle">{{ _('Confirm patient-record status change') }}</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
+        </div>
+        <div class="modal-body">
+          <div class="record-status-warning" role="note">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            <span>{{ _('The record will be preserved. Its visibility and lifecycle state will change and the action cannot be removed from audit history.') }}</span>
+          </div>
+          <label class="form-label" for="recordStatusSelect">{{ _('New status') }}</label>
+          <select class="form-select" id="recordStatusSelect" name="record_status" required>
+            {% for status in available_statuses %}
+            <option value="{{ status }}">{{ _(record_status_labels[status]) }}</option>
+            {% endfor %}
+          </select>
+          <label class="form-label mt-3" for="recordStatusReason">{{ _('Reason') }}</label>
+          <textarea class="form-control" id="recordStatusReason" name="status_reason" rows="4" maxlength="1000" required placeholder="{{ _('Explain why this lifecycle change is necessary...') }}"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle" aria-hidden="true"></i>{{ _('Confirm Status Change') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/usb-monitor.js') }}"></script>

@@ -115,7 +115,7 @@ Open: **http://127.0.0.1:5000**
 | 6 | After-hours sensitive | View PR-009 as reception1 (or check seeded events) |
 | 7 | Bulk access | Open 10+ records quickly as any staff |
 | 8 | Repeated sensitive | Open 3+ High/Critical records in 30 min |
-| 9 | Delete attempt | Click "Attempt Delete" on record as non-admin |
+| 9 | Blocked permanent-delete attempt | Submit a forged record-delete request and verify the 403 response, retained row, audit event, and security evaluation |
 | 10 | Daily report | Admin → Reports → Generate Today's Report |
 | 11 | Account recovery | Login page → Account Recovery Request → authorized admin review |
 | 12 | Temporary password | Admin resets password → user signs in → required password change |

@@ -33,7 +33,8 @@ from models import (
     get_access_events, get_alerts, get_alert_count, get_alert_summary,
     get_alert_filter_options, resolve_alert, get_dashboard_stats,
     get_chart_access_timeline, get_chart_alerts_by_severity, get_chart_user_registrations,
-    get_user_activity_summary, create_patient_record, update_patient_record, deactivate_patient_record,
+    get_user_activity_summary, create_patient_record, update_patient_record,
+    change_patient_record_status, get_patient_record_status_history,
     send_message, get_messages_for_user, get_sent_messages, get_unread_messages_for_user,
     mark_message_read, get_message, get_admin_users, create_admin_user, update_admin_user,
     get_unread_critical_notifications, mark_critical_notification_seen,
@@ -69,11 +70,15 @@ from record_policy import (
     sensitivity_key,
 )
 from record_access import (
-    can_delete_record, can_edit_record, can_export_record, can_view_record,
+    can_change_record_status, can_edit_record, can_export_record, can_view_record,
     departments_for_role, get_access_policy_reason, normalize_department, normalize_role,
     record_for_display,
     role_department_choices as get_role_department_choices,
     validate_role_department,
+)
+from record_status import (
+    RECORD_STATUS_LABELS,
+    available_record_status_transitions, normalize_record_status,
 )
 
 
@@ -580,6 +585,7 @@ def patient_records():
         'department': request.args.get('department', '').strip(),
         'sensitivity': request.args.get('sensitivity', '').strip(),
         'restricted': request.args.get('restricted', '').strip(),
+        'status': request.args.get('status', '').strip(),
     }
     try:
         page = max(int(request.args.get('page', 1)), 1)
@@ -590,6 +596,13 @@ def patient_records():
             filters['sensitivity'] = normalize_sensitivity(filters['sensitivity'])
         except ValueError:
             filters['sensitivity'] = ''
+    if filters['status']:
+        try:
+            filters['status'] = normalize_record_status(filters['status'])
+        except ValueError:
+            filters['status'] = ''
+    if not current_user.is_admin_panel:
+        filters['status'] = ''
 
     records, pagination = get_patient_records_page(
         current_user,
@@ -629,6 +642,7 @@ def patient_records():
         departments=Config.DEPARTMENTS,
         sensitivities=Config.SENSITIVITY_LEVELS,
         assignment_valid=assignment_valid,
+        record_statuses=RECORD_STATUS_LABELS,
     )
 
 
@@ -652,7 +666,7 @@ def pagination_window(current_page, total_pages):
 @login_required
 @staff_or_admin_required
 def record_detail(record_id):
-    record = get_patient_record(record_id)
+    record = get_patient_record(record_id, include_nonactive=True)
     if not record:
         abort(404)
 
@@ -686,10 +700,22 @@ def record_detail(record_id):
         ),
         'info' if result['final_risk_level'] == 'Normal' else 'warning'
     )
+    status_history = (
+        get_patient_record_status_history(record_id)
+        if current_user.is_admin_panel else []
+    )
+    current_status = normalize_record_status(
+        record.get('record_status'),
+        default='active' if record.get('is_active', 1) else 'deactivated',
+    )
     return render_template(
         'record_detail.html', record=record_for_display(current_user, record),
         result=result, usb_warning=usb_warning,
         export_allowed=can_export_record(current_user, record),
+        status_history=status_history,
+        current_record_status=current_status,
+        record_status_labels=RECORD_STATUS_LABELS,
+        available_statuses=available_record_status_transitions(current_status),
     )
 
 
@@ -697,7 +723,7 @@ def record_detail(record_id):
 @login_required
 @staff_or_admin_required
 def record_export(record_id):
-    record = get_patient_record(record_id)
+    record = get_patient_record(record_id, include_nonactive=True)
     if not record:
         abort(404)
     policy_reason = get_access_policy_reason(current_user, record, 'export')
@@ -735,26 +761,77 @@ def record_export(record_id):
 @login_required
 @staff_or_admin_required
 def record_delete(record_id):
-    record = get_patient_record(record_id)
+    record = get_patient_record(record_id, include_nonactive=True)
     if not record:
         abort(404)
-    delete_allowed = can_delete_record(current_user, record)
     result = process_access(
-        current_user, record, 'delete_attempt', authorized=delete_allowed,
+        current_user, record, 'delete_attempt', authorized=False,
         policy_reason=get_access_policy_reason(current_user, record, 'delete'),
     )
-    if current_user.is_admin_panel:
-        flash('Delete blocked. Admin audit logged.', 'info')
-    else:
-        flash(
-            _(
-                'Delete attempt blocked and logged. Risk: {risk}. '
-                'Alert sent to administrator.',
-                risk=translate_display(result['final_risk_level']),
-            ),
-            'danger'
+    flash(
+        _(
+            'Permanent deletion is not permitted. The attempt was blocked and '
+            'logged. Risk: {risk}.',
+            risk=translate_display(result['final_risk_level']),
+        ),
+        'danger',
+    )
+    abort(403, description=_('Permanent patient-record deletion is not permitted.'))
+
+
+@app.route('/records/<int:record_id>/status', methods=['POST'])
+@login_required
+@staff_or_admin_required
+def record_status_change(record_id):
+    """Apply an audited administrator-only patient-record lifecycle change."""
+    record = get_patient_record(record_id, include_nonactive=True)
+    if not record:
+        abort(404)
+    if not can_change_record_status(current_user, record):
+        process_access(
+            current_user, record, 'delete_attempt', authorized=False,
+            policy_reason='unauthorized_record_status_attempt',
         )
-    return redirect(url_for('patient_records'))
+        abort(403, description=_('You are not permitted to change record status.'))
+
+    if request.form.get('confirmed') != '1':
+        flash('Confirm the patient-record status change before submitting.', 'danger')
+        return redirect(url_for('record_detail', record_id=record_id))
+    target_status = request.form.get('record_status', '')
+    reason = request.form.get('status_reason', '')
+    computer_name = (
+        request.headers.get('X-Computer-Name')
+        or session.get('access_computer_name')
+        or 'Web session'
+    )
+    try:
+        change = change_patient_record_status(
+            record_id, target_status, reason, current_user,
+            ip_address=request.remote_addr or '127.0.0.1',
+            computer_name=computer_name,
+        )
+    except (ValueError, RuntimeError) as exc:
+        flash(str(exc), 'danger')
+        return redirect(url_for('record_detail', record_id=record_id))
+    except LookupError:
+        abort(404)
+    except sqlite3.DatabaseError as exc:
+        handle_patient_record_database_error(exc)
+        return redirect(url_for('record_detail', record_id=record_id))
+
+    log_admin_action(
+        current_user.id, change['reason_code'],
+        details=(
+            f"record_id={record_id}; from={change['previous_status']}; "
+            f"to={change['new_status']}; reason={change['reason']}"
+        )[:1000],
+    )
+    flash(
+        _('Patient record status changed to {status}.',
+          status=translate_display(RECORD_STATUS_LABELS[change['new_status']])),
+        'success',
+    )
+    return redirect(url_for('record_detail', record_id=record_id))
 
 
 # --- Admin routes ---
@@ -1274,29 +1351,14 @@ def patient_data_management():
                 flash('Simulated patient record updated.', 'success')
         elif action == 'deactivate':
             record_id = int(request.form.get('record_id'))
-            existing_record = get_patient_record(record_id)
+            existing_record = get_patient_record(record_id, include_nonactive=True)
             if not existing_record:
                 abort(404)
-            policy_reason = get_access_policy_reason(
-                current_user, existing_record, 'delete'
+            process_access(
+                current_user, existing_record, 'delete_attempt',
+                authorized=False, policy_reason='unauthorized_record_status_attempt',
             )
-            if not can_delete_record(current_user, existing_record):
-                process_access(
-                    current_user, existing_record, 'delete_attempt',
-                    authorized=False, policy_reason=policy_reason,
-                )
-                abort(403)
-            try:
-                deactivate_patient_record(record_id)
-                process_access(
-                    current_user, existing_record, 'delete_attempt',
-                    authorized=True, policy_reason=policy_reason,
-                )
-                log_admin_action(current_user.id, 'deactivate_patient_record', details=f"id={record_id}")
-            except sqlite3.DatabaseError as exc:
-                handle_patient_record_database_error(exc)
-                return redirect(url_for('patient_data_management'))
-            flash('Patient record deactivated.', 'warning')
+            abort(403, description=_('Use the controlled record-status workflow.'))
         return redirect(url_for('patient_data_management'))
 
     return render_patient_data_management_form()

@@ -35,13 +35,8 @@
           <td>{{ tr_display(r.department) }}</td>
           <td>{{ sensitivity_pill(r.sensitivity_level) }}</td>
           <td><div class="table-actions">
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('record_detail', record_id=r.id) }}">Manage Status</a>
             <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#editRecord{{ r.id }}">Edit</button>
-            <form method="POST" class="d-inline" data-confirm="Deactivate this record?">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="action" value="deactivate">
-              <input type="hidden" name="record_id" value="{{ r.id }}">
-              <button class="btn btn-sm btn-danger">Deactivate</button>
-            </form>
           </div></td>
         </tr>
         <tr id="editRecord{{ r.id }}" class="collapse edit-panel{% if submitted_action == 'update' and submitted_record and submitted_record.get('record_id')|int == r.id %} show{% endif %}">

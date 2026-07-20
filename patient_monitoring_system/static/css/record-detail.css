@@ -56,7 +56,7 @@
 
 .record-classification {
     display: grid;
-    grid-template-columns: repeat(4, minmax(120px, 1fr)) auto;
+    grid-template-columns: repeat(5, minmax(105px, 1fr)) auto;
     align-items: center;
     gap: 0;
     padding: 1rem 1.2rem;
@@ -74,7 +74,7 @@
     padding-left: 0;
 }
 
-.record-classification-item:nth-child(4) {
+.record-classification-item:nth-child(5) {
     border-right: 0;
 }
 
@@ -167,6 +167,92 @@
 .record-risk-high { color: #9a3412; background: #fff7ed; border-color: #fed7aa; }
 .record-risk-critical { color: #991b1b; background: var(--app-danger-soft); border-color: #fecaca; }
 .record-alert-result { color: var(--app-danger); }
+
+.record-status-badge {
+    display: inline-flex !important;
+    width: fit-content;
+    margin: 0 !important;
+    padding: 0.28rem 0.55rem;
+    border: 1px solid var(--app-border-strong);
+    border-radius: 999px;
+    font-size: 0.67rem !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.record-status-badge.status-active { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.record-status-badge.status-archived { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+.record-status-badge.status-entered_in_error { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.record-status-badge.status-deactivated { color: #9a3412; background: #fff7ed; border-color: #fed7aa; }
+.record-status-badge.status-voided { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+
+html[data-theme="dark"] .record-status-badge.status-active { color: #6ee7b7; background: #12352a; border-color: #23624c; }
+html[data-theme="dark"] .record-status-badge.status-archived { color: #cbd5e1; background: #253044; border-color: #475569; }
+html[data-theme="dark"] .record-status-badge.status-entered_in_error { color: #fcd34d; background: #3a2b12; border-color: #765517; }
+html[data-theme="dark"] .record-status-badge.status-deactivated { color: #fdba74; background: #3d2416; border-color: #7c3d1b; }
+html[data-theme="dark"] .record-status-badge.status-voided { color: #fca5a5; background: #3b1b24; border-color: #7f2f3e; }
+
+.record-status-notice,
+.record-status-manager {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    margin-bottom: 1.2rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-surface-soft, #f8fafc);
+}
+
+.record-status-notice > i {
+    color: var(--app-warning);
+    font-size: 1rem;
+}
+
+.record-status-notice h2,
+.record-status-manager h2 {
+    margin: 0 0 0.35rem;
+    color: var(--app-text);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.record-status-notice dl {
+    display: flex;
+    gap: 0.75rem 1.5rem;
+    flex-wrap: wrap;
+    margin: 0;
+}
+
+.record-status-notice dl > div { min-width: 120px; }
+.record-status-notice dt { color: var(--app-muted); font-size: 0.65rem; text-transform: uppercase; }
+.record-status-notice dd { margin: 0.15rem 0 0; color: var(--app-text-soft); font-size: 0.76rem; }
+
+.record-status-manager {
+    align-items: center;
+    justify-content: space-between;
+    background: var(--app-primary-soft);
+    border-color: #bfdbfe;
+}
+
+.record-status-manager h2 i { margin-right: 0.45rem; color: var(--app-primary); }
+.record-status-manager p { margin: 0; color: var(--app-muted); font-size: 0.74rem; line-height: 1.5; }
+.record-status-terminal { color: var(--app-muted); font-size: 0.72rem; white-space: nowrap; }
+
+.record-status-modal { background: var(--app-surface, #fff); color: var(--app-text); }
+.record-status-warning {
+    display: flex;
+    gap: 0.55rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    color: #92400e;
+    background: var(--app-warning-soft);
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    font-size: 0.76rem;
+    line-height: 1.45;
+}
 
 .record-medical-layout {
     display: grid;
@@ -411,7 +497,7 @@
 
 @media (max-width: 1199.98px) {
     .record-classification {
-        grid-template-columns: repeat(4, minmax(100px, 1fr));
+        grid-template-columns: repeat(5, minmax(90px, 1fr));
     }
 
     .record-sensitivity-badge {
@@ -471,6 +557,11 @@
 
     .record-detail-body {
         padding: 1rem;
+    }
+
+    .record-status-manager {
+        align-items: stretch;
+        flex-direction: column;
     }
 
     .record-vitals-grid {

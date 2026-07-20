@@ -121,7 +121,7 @@ def run_checks():
         assert can_export_record(users['lab'], records['ER-LAB'])
         assert not can_export_record(users['reception'], records['FRONT'])
         assert can_edit_record(users['admin'], records['PSY'])
-        assert can_delete_record(users['superadmin'], records['ID'])
+        assert not can_delete_record(users['superadmin'], records['ID'])
         assert not can_edit_record(users['gm_doctor'], records['GM'])
         assert not can_delete_record(users['gm_doctor'], records['GM'])
         detailed = dict(records['ER-LAB'], clinical_notes='withheld', heart_rate=80)
@@ -129,7 +129,7 @@ def run_checks():
         assert limited['clinical_notes'] is None and limited['heart_rate'] is None
         assert limited['record_title'] == detailed['record_title']
         assert not record_for_display(users['er_doctor'], detailed)['service_scope_limited']
-        checks.append('view/export/edit/delete remain separate decisions')
+        checks.append('view/export/edit are separate and permanent delete is unavailable')
 
         for index, (name, user) in enumerate(users.items(), start=1):
             if name.startswith('invalid_'):

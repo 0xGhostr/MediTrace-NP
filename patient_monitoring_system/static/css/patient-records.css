@@ -570,3 +570,26 @@
         justify-content: center;
     }
 }
+.pr-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.24rem 0.5rem;
+    border: 1px solid var(--app-border-strong);
+    border-radius: 999px;
+    font-size: 0.67rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.pr-status-badge.status-active { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.pr-status-badge.status-archived { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+.pr-status-badge.status-entered_in_error { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.pr-status-badge.status-deactivated { color: #9a3412; background: #fff7ed; border-color: #fed7aa; }
+.pr-status-badge.status-voided { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+
+html[data-theme="dark"] .pr-status-badge.status-active { color: #6ee7b7; background: #12352a; border-color: #23624c; }
+html[data-theme="dark"] .pr-status-badge.status-archived { color: #cbd5e1; background: #253044; border-color: #475569; }
+html[data-theme="dark"] .pr-status-badge.status-entered_in_error { color: #fcd34d; background: #3a2b12; border-color: #765517; }
+html[data-theme="dark"] .pr-status-badge.status-deactivated { color: #fdba74; background: #3d2416; border-color: #7c3d1b; }
+html[data-theme="dark"] .pr-status-badge.status-voided { color: #fca5a5; background: #3b1b24; border-color: #7f2f3e; }

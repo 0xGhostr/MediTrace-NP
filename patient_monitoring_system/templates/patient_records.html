@@ -55,7 +55,7 @@
             class="pr-btn-filter"
             data-bs-toggle="collapse"
             data-bs-target="#prFiltersPanel"
-            aria-expanded="{{ 'true' if filters.category or filters.department or filters.sensitivity or filters.restricted else 'false' }}"
+            aria-expanded="{{ 'true' if filters.category or filters.department or filters.sensitivity or filters.restricted or filters.status else 'false' }}"
             aria-controls="prFiltersPanel"
         >
             <i class="bi bi-funnel"></i>
@@ -69,7 +69,7 @@
     </div>
 
     {# --- Client-side filters (UI only — no API change) --- #}
-    <div class="collapse{% if filters.category or filters.department or filters.sensitivity or filters.restricted %} show{% endif %}" id="prFiltersPanel">
+    <div class="collapse{% if filters.category or filters.department or filters.sensitivity or filters.restricted or filters.status %} show{% endif %}" id="prFiltersPanel">
         <div class="pr-filters-panel">
             <div class="row g-3 align-items-end">
                 <div class="col-md-6 col-lg-3">
@@ -81,6 +81,17 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% if current_user.is_admin_panel %}
+                <div class="col-md-6 col-lg-3">
+                    <label for="prFilterStatus">{{ _('Record Status') }}</label>
+                    <select id="prFilterStatus" name="status" aria-label="{{ _('Filter by record status') }}">
+                        <option value="">{{ _('All statuses') }}</option>
+                        {% for status, label in record_statuses.items() %}
+                        <option value="{{ status }}"{% if filters.status == status %} selected{% endif %}>{{ _(label) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
                 <div class="col-md-6 col-lg-3">
                     <label for="prFilterDepartment">Department</label>
                     <select id="prFilterDepartment" name="department" aria-label="Filter by department">
@@ -136,6 +147,7 @@
                         <th scope="col">Category</th>
                         <th scope="col">Department</th>
                         <th scope="col">Sensitivity</th>
+                        {% if current_user.is_admin_panel %}<th scope="col">{{ _('Status') }}</th>{% endif %}
                         <th scope="col">Actions</th>
                     </tr>
                 </thead>
@@ -158,6 +170,7 @@
                         </td>
                         <td class="pr-cell-muted">{{ tr_display(r.department) }}</td>
                         <td>{{ sensitivity_pill(r.sensitivity_level) }}</td>
+                        {% if current_user.is_admin_panel %}<td><span class="pr-status-badge status-{{ r.record_status or 'active' }}">{{ _(record_statuses.get(r.record_status or 'active', 'Active')) }}</span></td>{% endif %}
                         <td>
                             <div class="pr-actions">
                                 <a
@@ -171,7 +184,7 @@
                                     href="{{ url_for('record_export', record_id=r.id) }}"
                                     class="pr-btn-export"
                                     aria-label="Log export for {{ r.patient_code }}"
-                                    title="Log export to USB monitoring"
+                                    title="{{ _('Export activity is logged and security monitored') }}"
                                 >
                                     <i class="bi bi-download"></i> Export
                                 </a>{% endif %}
@@ -193,20 +206,20 @@
         {% if pagination.total_pages > 1 %}
         <nav class="pr-pagination" aria-label="Patient record pages">
             <a class="pr-page-link{% if not pagination.has_previous %} disabled{% endif %}"
-               {% if pagination.has_previous %}href="{{ url_for('patient_records', page=pagination.previous_page, search=filters.search, category=filters.category, department=filters.department, sensitivity=filters.sensitivity, restricted=filters.restricted) }}"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
+               {% if pagination.has_previous %}href="{{ url_for('patient_records', page=pagination.previous_page, search=filters.search, category=filters.category, department=filters.department, sensitivity=filters.sensitivity, restricted=filters.restricted, status=filters.status) }}"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
                aria-label="Previous page"><i class="bi bi-chevron-left"></i>Previous</a>
             {% for page_number in page_numbers %}
                 {% if page_number is none %}
                 <span class="pr-page-ellipsis" aria-hidden="true">...</span>
                 {% else %}
                 <a class="pr-page-link{% if page_number == pagination.page %} active{% endif %}"
-                   href="{{ url_for('patient_records', page=page_number, search=filters.search, category=filters.category, department=filters.department, sensitivity=filters.sensitivity, restricted=filters.restricted) }}"
+                   href="{{ url_for('patient_records', page=page_number, search=filters.search, category=filters.category, department=filters.department, sensitivity=filters.sensitivity, restricted=filters.restricted, status=filters.status) }}"
                    {% if page_number == pagination.page %}aria-current="page"{% endif %}
                    aria-label="Page {{ page_number }}">{{ page_number }}</a>
                 {% endif %}
             {% endfor %}
             <a class="pr-page-link{% if not pagination.has_next %} disabled{% endif %}"
-               {% if pagination.has_next %}href="{{ url_for('patient_records', page=pagination.next_page, search=filters.search, category=filters.category, department=filters.department, sensitivity=filters.sensitivity, restricted=filters.restricted) }}"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
+               {% if pagination.has_next %}href="{{ url_for('patient_records', page=pagination.next_page, search=filters.search, category=filters.category, department=filters.department, sensitivity=filters.sensitivity, restricted=filters.restricted, status=filters.status) }}"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
                aria-label="Next page">Next<i class="bi bi-chevron-right"></i></a>
         </nav>
         {% endif %}

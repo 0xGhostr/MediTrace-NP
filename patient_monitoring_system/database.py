@@ -103,7 +103,33 @@ def init_db():
             temperature REAL,
             oxygen_saturation REAL,
             created_at TEXT NOT NULL,
-            is_active INTEGER NOT NULL DEFAULT 1
+            is_active INTEGER NOT NULL DEFAULT 1,
+            record_status TEXT NOT NULL DEFAULT 'active'
+                CHECK (record_status IN (
+                    'active', 'archived', 'entered_in_error', 'deactivated', 'voided'
+                )),
+            status_reason TEXT,
+            status_changed_at TEXT,
+            status_changed_by INTEGER,
+            FOREIGN KEY (status_changed_by) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS patient_record_status_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_id INTEGER NOT NULL,
+            record_code TEXT NOT NULL,
+            previous_status TEXT NOT NULL,
+            new_status TEXT NOT NULL,
+            reason_code TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            changed_by_id INTEGER NOT NULL,
+            changed_by_username TEXT NOT NULL,
+            changed_by_role TEXT NOT NULL,
+            changed_at TEXT NOT NULL,
+            ip_address TEXT,
+            computer_name TEXT,
+            FOREIGN KEY (record_id) REFERENCES patient_records(id),
+            FOREIGN KEY (changed_by_id) REFERENCES users(id)
         );
 
         CREATE TABLE IF NOT EXISTS access_events (
@@ -359,6 +385,18 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_usb_events_risk ON usb_events(risk_level);
         CREATE INDEX IF NOT EXISTS idx_usb_device_actions_device ON usb_device_actions(device_id);
         CREATE INDEX IF NOT EXISTS idx_model_runs_trained_at ON model_runs(trained_at);
+        CREATE INDEX IF NOT EXISTS idx_record_status_history_record
+            ON patient_record_status_history(record_id, changed_at DESC, id DESC);
+        CREATE TRIGGER IF NOT EXISTS trg_record_status_history_no_update
+        BEFORE UPDATE ON patient_record_status_history
+        BEGIN
+            SELECT RAISE(ABORT, 'patient record status history is immutable');
+        END;
+        CREATE TRIGGER IF NOT EXISTS trg_record_status_history_no_delete
+        BEFORE DELETE ON patient_record_status_history
+        BEGIN
+            SELECT RAISE(ABORT, 'patient record status history is immutable');
+        END;
     ''')
 
     migrate_schema(cursor)
@@ -468,8 +506,13 @@ def migrate_schema(cursor):
 
     rec_cols = table_columns.get('patient_records', set())
     if rec_cols:
+        record_status_added = 'record_status' not in rec_cols
         patient_record_columns = {
             'is_active': 'INTEGER NOT NULL DEFAULT 1',
+            'record_status': "TEXT NOT NULL DEFAULT 'active'",
+            'status_reason': 'TEXT',
+            'status_changed_at': 'TEXT',
+            'status_changed_by': 'INTEGER',
             'patient_identifier': 'TEXT',
             'patient_name': 'TEXT',
             'patient_age': 'INTEGER',
@@ -491,6 +534,88 @@ def migrate_schema(cursor):
                 cursor.execute(
                     f'ALTER TABLE patient_records ADD COLUMN {column_name} {column_type}'
                 )
+        if record_status_added:
+            # Preserve the meaning of any legacy soft-deactivated row while
+            # initializing all existing visible records as Active.
+            cursor.execute(
+                """
+                UPDATE patient_records
+                SET record_status = CASE
+                    WHEN COALESCE(is_active, 1) = 1 THEN 'active'
+                    ELSE 'deactivated'
+                END
+                """
+            )
+        cursor.execute(
+            """
+            UPDATE patient_records
+            SET is_active = CASE
+                WHEN LOWER(COALESCE(record_status, 'active')) = 'active' THEN 1
+                ELSE 0
+            END
+            WHERE LOWER(COALESCE(record_status, 'active')) IN
+                ('active', 'archived', 'entered_in_error', 'deactivated', 'voided')
+            """
+        )
+        cursor.execute(
+            """
+            UPDATE patient_records
+            SET status_reason = COALESCE(
+                    NULLIF(TRIM(status_reason), ''),
+                    'Legacy inactive state preserved during lifecycle migration.'
+                ),
+                status_changed_at = COALESCE(status_changed_at, ?)
+            WHERE LOWER(COALESCE(record_status, 'active')) <> 'active'
+              AND status_changed_at IS NULL
+            """,
+            (datetime.utcnow().isoformat(),),
+        )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS patient_record_status_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_id INTEGER NOT NULL,
+            record_code TEXT NOT NULL,
+            previous_status TEXT NOT NULL,
+            new_status TEXT NOT NULL,
+            reason_code TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            changed_by_id INTEGER NOT NULL,
+            changed_by_username TEXT NOT NULL,
+            changed_by_role TEXT NOT NULL,
+            changed_at TEXT NOT NULL,
+            ip_address TEXT,
+            computer_name TEXT,
+            FOREIGN KEY (record_id) REFERENCES patient_records(id),
+            FOREIGN KEY (changed_by_id) REFERENCES users(id)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_record_status_history_record
+        ON patient_record_status_history(record_id, changed_at DESC, id DESC)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_record_status_history_no_update
+        BEFORE UPDATE ON patient_record_status_history
+        BEGIN
+            SELECT RAISE(ABORT, 'patient record status history is immutable');
+        END
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_record_status_history_no_delete
+        BEFORE DELETE ON patient_record_status_history
+        BEGIN
+            SELECT RAISE(ABORT, 'patient record status history is immutable');
+        END
+        """
+    )
 
     usb_device_cols = table_columns.get('usb_devices', set())
     if usb_device_cols:
@@ -856,10 +981,33 @@ def clear_all_data():
     conn = get_db()
     cursor = conn.cursor()
     tables = ['account_recovery_requests', 'messages', 'alerts', 'model_runs', 'usb_device_actions', 'usb_events', 'usb_devices', 'access_events',
+              'patient_record_status_history',
               'login_history', 'admin_actions', 'reports', 'patient_records', 'users']
     cursor.execute('PRAGMA foreign_keys = OFF')
+    # This explicit full reseed maintenance operation is the only supported
+    # path that temporarily removes the database-level immutability guards.
+    cursor.execute('DROP TRIGGER IF EXISTS trg_record_status_history_no_update')
+    cursor.execute('DROP TRIGGER IF EXISTS trg_record_status_history_no_delete')
     for table in tables:
         cursor.execute(f'DELETE FROM {table}')
+    cursor.execute(
+        """
+        CREATE TRIGGER trg_record_status_history_no_update
+        BEFORE UPDATE ON patient_record_status_history
+        BEGIN
+            SELECT RAISE(ABORT, 'patient record status history is immutable');
+        END
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TRIGGER trg_record_status_history_no_delete
+        BEFORE DELETE ON patient_record_status_history
+        BEGIN
+            SELECT RAISE(ABORT, 'patient record status history is immutable');
+        END
+        """
+    )
     cursor.execute('PRAGMA foreign_keys = ON')
     conn.commit()
     conn.close()

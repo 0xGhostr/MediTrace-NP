@@ -113,11 +113,17 @@ def _view_decision(user, record):
         return False, 'account_not_authorized'
     if not validate_role_department(role, department):
         return False, 'invalid_role_department_assignment'
+    if record is None:
+        return False, 'record_not_found'
     if role in PRIVILEGED_ROLES:
         reason = 'privileged_superadmin_view' if role == 'Super Admin' else 'privileged_admin_view'
         return True, reason
-    if record is None:
-        return False, 'record_not_found'
+
+    record_status = str(_value(record, 'record_status', '') or '').strip().casefold()
+    if not record_status:
+        record_status = 'active' if bool(_value(record, 'is_active', True)) else 'deactivated'
+    if record_status != 'active':
+        return False, 'record_not_active'
 
     record_department = normalize_department(_value(record, 'department'))
     category = normalize_record_category(_value(record, 'record_category'))
@@ -156,6 +162,8 @@ def _view_decision(user, record):
 def get_access_policy_reason(user, record, action='view'):
     """Return a safe reason code for an allowed or denied record action."""
     view_allowed, view_reason = _view_decision(user, record)
+    if action == 'delete':
+        return 'permanent_delete_not_permitted'
     if action == 'view' or not view_allowed:
         return view_reason
     role = normalize_role(_value(user, 'role'))
@@ -170,8 +178,8 @@ def get_access_policy_reason(user, record, action='view'):
         return view_reason
     if action == 'edit':
         return view_reason if role in PRIVILEGED_ROLES else 'edit_not_permitted'
-    if action == 'delete':
-        return view_reason if role in PRIVILEGED_ROLES else 'delete_not_permitted'
+    if action == 'status':
+        return view_reason if role in PRIVILEGED_ROLES else 'unauthorized_record_status_attempt'
     return 'action_not_permitted'
 
 
@@ -188,7 +196,12 @@ def can_edit_record(user, record):
 
 
 def can_delete_record(user, record):
-    """Preserve existing admin-only record deactivation permission."""
+    """Permanent patient-record deletion is unavailable to every role."""
+    return False
+
+
+def can_change_record_status(user, record):
+    """Only approved Admin/Super Admin accounts may use lifecycle actions."""
     return can_view_record(user, record) and normalize_role(_value(user, 'role')) in PRIVILEGED_ROLES
 
 

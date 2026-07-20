@@ -20,6 +20,11 @@ from record_access import (
     normalize_role,
     validate_role_department,
 )
+from record_status import (
+    RECORD_STATUS_REASON_CODES,
+    normalize_record_status,
+    validate_record_status_transition,
+)
 
 
 def row_to_dict(row):
@@ -148,19 +153,25 @@ def category_mismatch(role, category):
     return not role_can_access_category(role, category)
 
 
-def get_patient_record(record_id):
+_ACTIVE_RECORD_SQL = (
+    "LOWER(COALESCE(NULLIF(TRIM(record_status), ''), "
+    "CASE WHEN COALESCE(is_active, 1) = 1 THEN 'active' ELSE 'deactivated' END)) = 'active'"
+)
+
+
+def get_patient_record(record_id, include_nonactive=False):
     conn = get_db()
-    record = conn.execute(
-        'SELECT * FROM patient_records WHERE id = ? AND COALESCE(is_active, 1) = 1',
-        (record_id,),
-    ).fetchone()
+    query = 'SELECT * FROM patient_records WHERE id = ?'
+    if not include_nonactive:
+        query += f' AND {_ACTIVE_RECORD_SQL}'
+    record = conn.execute(query, (record_id,)).fetchone()
     conn.close()
     return row_to_dict(record)
 
 
 def get_all_patient_records(category_filter=None, search=None):
     conn = get_db()
-    query = 'SELECT * FROM patient_records WHERE COALESCE(is_active, 1) = 1'
+    query = f'SELECT * FROM patient_records WHERE {_ACTIVE_RECORD_SQL}'
     params = []
     if category_filter:
         placeholders = ','.join('?' * len(category_filter))
@@ -200,9 +211,14 @@ def _record_query_user(user_or_role, is_admin_panel=None):
 
 
 def get_authorized_patient_records(user, search=None):
-    """Return all active rows in the centralized view scope for dashboards."""
+    """Return rows in centralized view scope, including lifecycle policy."""
     scope_sql, scope_params = authorized_record_predicate(user)
-    conditions = ['COALESCE(is_active, 1) = 1', scope_sql]
+    conditions = [scope_sql]
+    role = normalize_role(
+        user.get('role') if isinstance(user, dict) else getattr(user, 'role', None)
+    )
+    if role not in {'Admin', 'Super Admin'}:
+        conditions.insert(0, _ACTIVE_RECORD_SQL)
     params = list(scope_params)
     if search:
         search_value = f'%{str(search).strip()}%'
@@ -239,10 +255,29 @@ def get_patient_records_page(user_or_role, is_admin_panel=None, filters=None, pa
     category_expr = (
         "LOWER(REPLACE(REPLACE(TRIM(record_category), '_', '-'), ' ', '-'))"
     )
-    conditions = ['COALESCE(is_active, 1) = 1']
+    role = normalize_role(
+        user.get('role') if isinstance(user, dict) else getattr(user, 'role', None)
+    )
+    conditions = []
     params = []
 
-    # Authorization is the first SQL predicate, before filtering, counting, and
+    status = str(filters.get('status') or '').strip()
+    if role in {'Admin', 'Super Admin'}:
+        if status:
+            try:
+                status = normalize_record_status(status)
+            except ValueError:
+                status = ''
+            if status:
+                conditions.append(
+                    "LOWER(COALESCE(NULLIF(TRIM(record_status), ''), 'active')) = ?"
+                )
+                params.append(status)
+    else:
+        # A forged status query never expands an ordinary staff member's scope.
+        conditions.append(_ACTIVE_RECORD_SQL)
+
+    # Authorization is applied in the same SQL statement before counting and
     # pagination, so unauthorized rows and totals never reach the caller.
     scope_sql, scope_params = authorized_record_predicate(user)
     conditions.append(scope_sql)
@@ -1074,8 +1109,8 @@ def create_patient_record(data):
                 patient_age, patient_gender, ward, admission_date, attending_doctor,
                 primary_condition, clinical_notes, medication_or_treatment,
                 relevant_observations, heart_rate, blood_pressure, temperature,
-                oxygen_saturation, created_at, is_active
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                oxygen_saturation, created_at, is_active, record_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'active')
             """,
             (
                 data['patient_code'],
@@ -1146,12 +1181,108 @@ def update_patient_record(record_id, data):
         )
 
 
-def deactivate_patient_record(record_id):
+def _subject_value(subject, name, default=None):
+    if isinstance(subject, dict):
+        return subject.get(name, default)
+    return getattr(subject, name, default)
+
+
+def change_patient_record_status(
+        record_id, new_status, reason, actor, *, ip_address=None,
+        computer_name=None):
+    """Change lifecycle status and append immutable history atomically."""
+    role = normalize_role(_subject_value(actor, 'role'))
+    approved = str(_subject_value(actor, 'approval_status', '')).casefold() == 'approved'
+    active = bool(_subject_value(
+        actor, 'is_active_account', _subject_value(actor, 'is_active', False)
+    ))
+    deleted = bool(_subject_value(actor, 'is_deleted', False))
+    if role not in {'Admin', 'Super Admin'} or not approved or not active or deleted:
+        raise PermissionError('Only an approved active administrator may change record status.')
+
+    reason = str(reason or '').strip()
+    if not reason:
+        raise ValueError('A reason is required for every patient-record status change.')
+    if len(reason) > 1000:
+        raise ValueError('The status-change reason must be 1000 characters or fewer.')
+
+    actor_id = int(_subject_value(actor, 'id'))
+    actor_username = str(_subject_value(actor, 'username') or '').strip()[:120]
+    if not actor_username:
+        raise ValueError('The administrator identity is unavailable.')
+
+    target = normalize_record_status(new_status)
+    changed_at = datetime.utcnow().isoformat()
     with write_connection() as conn:
-        conn.execute(
-            "UPDATE patient_records SET is_active = 0 WHERE id = ?",
-            (record_id,),
+        row = conn.execute(
+            'SELECT * FROM patient_records WHERE id = ?', (record_id,)
+        ).fetchone()
+        if not row:
+            raise LookupError('Patient record not found.')
+        current = row['record_status'] or (
+            'active' if row['is_active'] else 'deactivated'
         )
+        current, target = validate_record_status_transition(current, target)
+        cursor = conn.execute(
+            """
+            UPDATE patient_records
+            SET record_status = ?, is_active = ?, status_reason = ?,
+                status_changed_at = ?, status_changed_by = ?
+            WHERE id = ? AND LOWER(COALESCE(record_status, ?)) = ?
+            """,
+            (
+                target, 1 if target == 'active' else 0, reason, changed_at,
+                actor_id, record_id, current, current,
+            ),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError('The record status changed concurrently. Please try again.')
+        conn.execute(
+            """
+            INSERT INTO patient_record_status_history (
+                record_id, record_code, previous_status, new_status,
+                reason_code, reason, changed_by_id, changed_by_username,
+                changed_by_role, changed_at, ip_address, computer_name
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                record_id, row['patient_code'], current, target,
+                RECORD_STATUS_REASON_CODES[target], reason, actor_id,
+                actor_username, role, changed_at,
+                str(ip_address or '')[:120], str(computer_name or '')[:120],
+            ),
+        )
+    return {
+        'record_id': record_id,
+        'previous_status': current,
+        'new_status': target,
+        'reason_code': RECORD_STATUS_REASON_CODES[target],
+        'reason': reason,
+        'changed_at': changed_at,
+        'changed_by_username': actor_username,
+        'changed_by_role': role,
+    }
+
+
+def get_patient_record_status_history(record_id):
+    """Return newest-first immutable lifecycle entries for one record."""
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT * FROM patient_record_status_history
+        WHERE record_id = ? ORDER BY changed_at DESC, id DESC
+        """,
+        (record_id,),
+    ).fetchall()
+    conn.close()
+    return [row_to_dict(row) for row in rows]
+
+
+def deactivate_patient_record(record_id):
+    """Block the obsolete reasonless lifecycle bypass."""
+    raise RuntimeError(
+        'Direct deactivation is disabled; use change_patient_record_status().'
+    )
 
 
 def get_message(message_id):
