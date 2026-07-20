@@ -28,7 +28,7 @@
         <div class="card metric-card metric-warning">
             <div class="card-body">
                 <div class="metric-icon"><i class="bi bi-bell"></i></div>
-                <div class="metric-label">Alerts Today</div>
+                <div class="metric-label">Alerts Today by Final Severity</div>
                 <p class="metric-value">{{ stats.total_alerts_today }}</p>
             </div>
         </div>
@@ -37,7 +37,7 @@
         <div class="card metric-card metric-danger">
             <div class="card-body">
                 <div class="metric-icon"><i class="bi bi-exclamation-octagon"></i></div>
-                <div class="metric-label">Critical</div>
+                <div class="metric-label">Critical Alerts</div>
                 <p class="metric-value text-danger">{{ stats.critical_alerts }}</p>
             </div>
         </div>
@@ -46,7 +46,7 @@
         <div class="card metric-card metric-warning">
             <div class="card-body">
                 <div class="metric-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                <div class="metric-label">High</div>
+                <div class="metric-label">High Alerts</div>
                 <p class="metric-value">{{ stats.high_alerts }}</p>
             </div>
         </div>
@@ -55,7 +55,7 @@
         <div class="card metric-card metric-info">
             <div class="card-body">
                 <div class="metric-icon"><i class="bi bi-info-circle"></i></div>
-                <div class="metric-label">Medium</div>
+                <div class="metric-label">Medium Alerts</div>
                 <p class="metric-value">{{ stats.medium_alerts }}</p>
             </div>
         </div>
@@ -101,12 +101,15 @@
     </div>
 </div>
 
-<div class="row g-3 mb-4">
+<section class="mb-4" aria-labelledby="accessRiskSummaryTitle">
+<h2 class="app-section-title mb-3" id="accessRiskSummaryTitle">Today's Access Events by Final Risk Level</h2>
+<div class="row g-3">
     <div class="col-md-3"><div class="card"><div class="card-body">Normal: <strong class="text-success">{{ stats.risk_counts.Normal }}</strong></div></div></div>
     <div class="col-md-3"><div class="card"><div class="card-body">Medium: <strong class="text-warning">{{ stats.risk_counts.Medium }}</strong></div></div></div>
     <div class="col-md-3"><div class="card"><div class="card-body">High: <strong class="text-warning">{{ stats.risk_counts.High }}</strong></div></div></div>
     <div class="col-md-3"><div class="card"><div class="card-body">Critical: <strong class="text-danger">{{ stats.risk_counts.Critical }}</strong></div></div></div>
 </div>
+</section>
 
 <div class="row g-3 mb-4">
     <div class="col-lg-4">
@@ -117,8 +120,18 @@
     </div>
     <div class="col-lg-4">
         <div class="card chart-card-compact h-100">
-            <div class="card-header py-2 small">Alerts by Severity</div>
-            <div class="card-body"><canvas id="alertChart"></canvas></div>
+            <div class="card-header py-2 small">Alerts by Severity — Today</div>
+            <div class="card-body">
+                <canvas
+                    id="alertChart"
+                    data-label-medium="{{ _('Medium') }}"
+                    data-label-high="{{ _('High') }}"
+                    data-label-critical="{{ _('Critical') }}"
+                    data-alert-count-template="{{ _('{count} alerts') }}"
+                    data-no-alerts-label="{{ _('No alerts today') }}"
+                ></canvas>
+                <script id="alertSeverityTodayData" type="application/json">{{ alert_chart|tojson }}</script>
+            </div>
         </div>
     </div>
     <div class="col-lg-4">

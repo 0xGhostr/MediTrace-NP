@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="{{ current_locale|default('en') }}">
+<html lang="{{ current_locale|default('en') }}" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="{{ url_for('static', filename='js/theme-init.js') }}"></script>
     <title>{% block title %}{{ APP_NAME|default('MediTrace-Np') }}{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,6 +13,7 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/explainability.css') }}" rel="stylesheet">
     {% block extra_head %}{% endblock %}
+    <link href="{{ url_for('static', filename='css/theme.css') }}" rel="stylesheet">
 </head>
 <body class="{% if current_user.is_authenticated %}has-sidebar{% endif %}">
     {% set language_return_path = request.full_path if request.query_string else request.path %}
@@ -24,6 +26,17 @@
         <button type="submit" name="language" value="ne" class="language-option{% if current_locale == 'ne' %} active{% endif %}" lang="ne" aria-pressed="{{ 'true' if current_locale == 'ne' else 'false' }}">नेपाली</button>
     </form>
     {% endmacro %}
+    {% macro theme_toggle(extra_class='') %}
+    <button
+        type="button"
+        class="theme-toggle {{ extra_class }}"
+        aria-label="{{ _('Switch to Dark Mode') }}"
+        aria-pressed="false"
+        title="{{ _('Switch to Dark Mode') }}"
+        data-label-dark="{{ _('Switch to Dark Mode') }}"
+        data-label-light="{{ _('Switch to Light Mode') }}"
+    ><i class="bi bi-moon-stars" aria-hidden="true"></i></button>
+    {% endmacro %}
     {% if current_user.is_authenticated %}
     {% from "macros.html" import user_initials %}
     {% set avatar_name = current_user.full_name|default('', true)|trim %}
@@ -33,6 +46,7 @@
         <i class="bi bi-list"></i>
     </button>
     <div class="authenticated-header-actions" aria-label="{{ _('Current user') }}">
+        {{ theme_toggle() }}
         {{ language_switch() }}
         <span
             class="header-user-avatar"
@@ -73,7 +87,10 @@
     </aside>
     <main class="main-content" id="mainContent">
     {% else %}
-    {{ language_switch('public-language-switch') }}
+    <div class="public-header-actions">
+        {{ theme_toggle('public-theme-toggle') }}
+        {{ language_switch('public-language-switch') }}
+    </div>
     <main class="auth-main container py-4">
     {% endif %}
 
@@ -108,6 +125,7 @@
     <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/password-toggle.js') }}"></script>
     <script src="{{ url_for('static', filename='js/localized-ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 
     {% if usb_warning is defined and usb_warning %}
     <div class="modal fade" id="usbAlertModal" tabindex="-1" aria-hidden="true">

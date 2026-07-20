@@ -744,6 +744,47 @@ def get_alert_filter_options():
     }
 
 
+def get_nepal_day_utc_bounds(now=None):
+    """Return the current Nepal calendar day's half-open UTC boundaries."""
+    instant = now or datetime.now(timezone.utc)
+    if instant.tzinfo is None:
+        instant = instant.replace(tzinfo=timezone.utc)
+    else:
+        instant = instant.astimezone(timezone.utc)
+    local_now = instant.astimezone(ZoneInfo(Config.LOCAL_TIMEZONE))
+    local_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    local_end = local_start + timedelta(days=1)
+    return (
+        local_start.astimezone(timezone.utc).replace(tzinfo=None).isoformat(),
+        local_end.astimezone(timezone.utc).replace(tzinfo=None).isoformat(),
+    )
+
+
+def get_alert_summary_today(conn=None, now=None):
+    """Count each canonical alert severity once for the current Nepal day."""
+    own_connection = conn is None
+    conn = conn or get_db()
+    start_utc, end_utc = get_nepal_day_utc_bounds(now)
+    rows = conn.execute(
+        '''
+        SELECT LOWER(TRIM(severity)) AS severity_key, COUNT(DISTINCT id) AS cnt
+        FROM alerts
+        WHERE created_at >= ? AND created_at < ?
+          AND LOWER(TRIM(severity)) IN ('medium', 'high', 'critical')
+        GROUP BY LOWER(TRIM(severity))
+        ''',
+        (start_utc, end_utc),
+    ).fetchall()
+    if own_connection:
+        conn.close()
+
+    counts = {'medium': 0, 'high': 0, 'critical': 0}
+    for row in rows:
+        counts[row['severity_key']] = int(row['cnt'] or 0)
+    counts['total'] = counts['medium'] + counts['high'] + counts['critical']
+    return counts
+
+
 def resolve_alert(alert_id, admin_id, notes=None):
     conn = get_db()
     now = datetime.utcnow().isoformat()
@@ -765,10 +806,7 @@ def get_dashboard_stats():
         (f'{today}%',)
     ).fetchone()['cnt']
 
-    alerts_today = conn.execute(
-        "SELECT COUNT(*) as cnt FROM alerts WHERE created_at LIKE ?",
-        (f'{today}%',)
-    ).fetchone()['cnt']
+    alert_summary_today = get_alert_summary_today(conn=conn)
 
     risk_counts = {}
     for level in Config.RISK_LEVELS:
@@ -776,21 +814,6 @@ def get_dashboard_stats():
             "SELECT COUNT(*) as cnt FROM access_events WHERE final_risk_level = ? AND timestamp LIKE ?",
             (level, f'{today}%')
         ).fetchone()['cnt']
-
-    critical_alerts = conn.execute(
-        "SELECT COUNT(*) as cnt FROM alerts WHERE severity = 'Critical' AND created_at LIKE ?",
-        (f'{today}%',)
-    ).fetchone()['cnt']
-
-    high_alerts = conn.execute(
-        "SELECT COUNT(*) as cnt FROM alerts WHERE severity = 'High' AND created_at LIKE ?",
-        (f'{today}%',)
-    ).fetchone()['cnt']
-
-    medium_alerts = conn.execute(
-        "SELECT COUNT(*) as cnt FROM alerts WHERE severity = 'Medium' AND created_at LIKE ?",
-        (f'{today}%',)
-    ).fetchone()['cnt']
 
     recent_events = conn.execute(
         'SELECT * FROM access_events ORDER BY timestamp DESC LIMIT 10'
@@ -844,10 +867,11 @@ def get_dashboard_stats():
 
     return {
         'total_access_today': total_today,
-        'total_alerts_today': alerts_today,
-        'critical_alerts': critical_alerts,
-        'high_alerts': high_alerts,
-        'medium_alerts': medium_alerts,
+        'total_alerts_today': alert_summary_today['total'],
+        'critical_alerts': alert_summary_today['critical'],
+        'high_alerts': alert_summary_today['high'],
+        'medium_alerts': alert_summary_today['medium'],
+        'alert_summary_today': alert_summary_today,
         'risk_counts': risk_counts,
         'recent_events': [row_to_dict(e) for e in recent_events],
         'recent_alerts': [row_to_dict(a) for a in recent_alerts],
@@ -883,16 +907,14 @@ def get_chart_access_timeline(days=7):
     return {'labels': labels, 'data': data}
 
 
-def get_chart_alerts_by_severity():
-    conn = get_db()
-    severities = ['Medium', 'High', 'Critical']
-    rows = conn.execute(
-        "SELECT severity, COUNT(*) AS cnt FROM alerts GROUP BY severity"
-    ).fetchall()
-    row_map = {r['severity']: r['cnt'] for r in rows}
-    data = [row_map.get(sev, 0) for sev in severities]
-    conn.close()
-    return {'labels': severities, 'data': data}
+def get_chart_alerts_by_severity(alert_summary_today=None):
+    """Build chart-safe values from the shared current Nepal-day summary."""
+    summary = alert_summary_today or get_alert_summary_today()
+    items = [
+        {'key': key, 'label': key.title(), 'count': int(summary[key])}
+        for key in ('medium', 'high', 'critical')
+    ]
+    return {'items': items, 'total': int(summary['total'])}
 
 
 def get_user_activity_summary(user_id):

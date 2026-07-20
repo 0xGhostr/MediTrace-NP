@@ -686,7 +686,10 @@ def _require_admin_password_confirmation():
 @admin_panel_required
 def admin_dashboard():
     stats = get_dashboard_stats()
-    return render_template('admin_dashboard.html', stats=stats)
+    alert_chart = get_chart_alerts_by_severity(stats['alert_summary_today'])
+    return render_template(
+        'admin_dashboard.html', stats=stats, alert_chart=alert_chart,
+    )
 
 
 @app.route('/admin/pending-users', methods=['GET', 'POST'])

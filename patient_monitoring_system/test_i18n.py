@@ -87,7 +87,7 @@ def run_checks():
         response = guest_ne.get('/login', headers={'Accept-Language': 'ne-NP,ne;q=0.9'})
         nepali_login = response.get_data(as_text=True)
         assert response.headers['Content-Language'] == 'ne'
-        assert '<html lang="ne">' in nepali_login
+        assert '<html lang="ne" data-theme="light">' in nepali_login
         assert 'पुनः स्वागत छ' in nepali_login
         assert 'name="language" value="ne"' in nepali_login
 
@@ -129,7 +129,7 @@ def run_checks():
         # Public pages share the switch and translate labels without changing option values.
         register_page = guest_en.get('/register').get_data(as_text=True)
         recovery_page = guest_en.get('/account-recovery').get_data(as_text=True)
-        assert '<html lang="ne">' in register_page
+        assert '<html lang="ne" data-theme="light">' in register_page
         assert 'कर्मचारी स्व-दर्ता' in register_page
         assert 'value="Doctor"' in register_page and 'चिकित्सक' in register_page
         assert 'खाता पुनर्प्राप्ति अनुरोध' in recovery_page
@@ -139,7 +139,7 @@ def run_checks():
         # Saved authenticated preference is authoritative after login.
         auth_client = app_module.app.test_client()
         prelogin = auth_client.get('/login', headers={'Accept-Language': 'ne'}).get_data(as_text=True)
-        assert '<html lang="ne">' in prelogin
+        assert '<html lang="ne" data-theme="light">' in prelogin
         login_response = auth_client.post(
             '/login',
             data={
@@ -148,7 +148,7 @@ def run_checks():
             },
             follow_redirects=True,
         )
-        assert '<html lang="en">' in login_response.get_data(as_text=True)
+        assert '<html lang="en" data-theme="light">' in login_response.get_data(as_text=True)
 
         dashboard = auth_client.get('/admin/dashboard').get_data(as_text=True)
         token = csrf_token(dashboard)
@@ -158,7 +158,7 @@ def run_checks():
             follow_redirects=True,
         )
         html = switched.get_data(as_text=True)
-        assert '<html lang="ne">' in html
+        assert '<html lang="ne" data-theme="light">' in html
         assert 'प्रशासक ड्यासबोर्ड' in html and 'सुरक्षा चेतावनीहरू' in html
         assert html.index('language-switch') < html.index('header-user-avatar')
         conn = sqlite3.connect(temp_database)
@@ -188,7 +188,7 @@ def run_checks():
 
         # Logout keeps the harmless preference and public UI stays Nepali.
         logout_response = auth_client.get('/logout', follow_redirects=True)
-        assert '<html lang="ne">' in logout_response.get_data(as_text=True)
+        assert '<html lang="ne" data-theme="light">' in logout_response.get_data(as_text=True)
         checks.append('logout preserves harmless language preference')
 
         # Translation assets are centralized and confirmation strings are not inline JS.

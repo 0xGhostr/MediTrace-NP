@@ -121,6 +121,8 @@
           <div><dt><i class="bi bi-shield-check" aria-hidden="true"></i>Rule Score</dt><dd>{{ alert.rule_score if alert.rule_score is not none else 'Legacy' }}</dd></div>
           <div><dt><i class="bi bi-cpu" aria-hidden="true"></i>Behavioural Anomaly</dt><dd class="alert-score alert-score-{{ alert.severity|lower }}">{% if alert.anomaly_method == 'legacy_unverified' %}{{ alert.ml_score }}/100 legacy{% elif alert.anomaly_score is not none %}{{ alert.anomaly_score }}/100{% else %}N/A{% endif %}</dd></div>
           <div><dt><i class="bi bi-calculator" aria-hidden="true"></i>Hybrid Score</dt><dd>{{ alert.hybrid_score ~ '/100' if alert.hybrid_score is not none else 'Legacy' }}</dd></div>
+          <div><dt><i class="bi bi-shield-exclamation" aria-hidden="true"></i>Final Access Risk</dt><dd>{{ tr_display(alert.explanation.final_risk_level or alert.severity) }}</dd></div>
+          <div><dt><i class="bi bi-bell" aria-hidden="true"></i>Alert Severity</dt><dd>{{ tr_display(alert.severity) }}</dd></div>
           <div><dt><i class="bi bi-calendar3" aria-hidden="true"></i>Created</dt><dd>{{ alert.created_at[:19].replace('T', ' ') }}</dd></div>
           <div><dt><i class="bi bi-building" aria-hidden="true"></i>Department</dt><dd>{{ tr_display(alert.department) }}</dd></div>
           {% if alert.event_staff_id %}
@@ -136,7 +138,10 @@
           <div class="alert-device-meta"><dt><i class="bi bi-pc-display" aria-hidden="true"></i>Device</dt><dd title="{{ alert.event_computer_name }}">{{ alert.event_computer_name }}</dd></div>
           {% endif %}
           {% if alert.event_record_category %}
-          <div><dt><i class="bi bi-file-medical" aria-hidden="true"></i>Record Type</dt><dd>{{ tr_display(alert.event_record_category) }}{% if alert.event_sensitivity_level %} · {{ tr_display(alert.event_sensitivity_level) }}{% endif %}</dd></div>
+          <div><dt><i class="bi bi-file-medical" aria-hidden="true"></i>Record Category</dt><dd>{{ tr_display(alert.event_record_category) }}</dd></div>
+          {% endif %}
+          {% if alert.event_sensitivity_level %}
+          <div><dt><i class="bi bi-shield-lock" aria-hidden="true"></i>Record Sensitivity</dt><dd>{{ tr_display(alert.event_sensitivity_level) }}</dd></div>
           {% endif %}
         </dl>
         {{ scoring_explanation(alert) }}
