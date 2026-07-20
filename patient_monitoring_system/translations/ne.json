@@ -948,5 +948,13 @@
   "Staff": "कर्मचारी",
   "Access Action": "पहुँच कार्य",
   "View Alert": "चेतावनी हेर्नुहोस्",
-  "Dismiss": "बन्द गर्नुहोस्"
+  "Dismiss": "बन्द गर्नुहोस्",
+  "Select a valid department for the selected role.": "चयन गरिएको भूमिकाका लागि मान्य विभाग चयन गर्नुहोस्।",
+  "Your role and department assignment requires administrator review before patient records can be accessed.": "बिरामी अभिलेख पहुँच गर्नुअघि तपाईंको भूमिका र विभागको जिम्मेवारी प्रशासकले समीक्षा गर्न आवश्यक छ।",
+  "requires review": "समीक्षा आवश्यक",
+  "Assignment review required": "जिम्मेवारी समीक्षा आवश्यक",
+  "No records found for your role and department.": "तपाईंको भूमिका र विभागका लागि कुनै अभिलेख फेला परेन।",
+  "Patient records are shown according to your approved role, department and service responsibilities. All patient-record activity is logged and monitored.": "बिरामी अभिलेखहरू तपाईंको स्वीकृत भूमिका, विभाग र सेवा जिम्मेवारीअनुसार देखाइन्छन्। सबै बिरामी अभिलेख गतिविधि लग र निगरानी गरिन्छ।",
+  "Patient records are shown according to your approved role, department and service responsibilities. Admin and Superadmin users have privileged view access. All patient-record activity is logged and monitored.": "बिरामी अभिलेखहरू तपाईंको स्वीकृत भूमिका, विभाग र सेवा जिम्मेवारीअनुसार देखाइन्छन्। एडमिन र सुपरएडमिन प्रयोगकर्तासँग विशेष हेर्ने पहुँच हुन्छ। सबै बिरामी अभिलेख गतिविधि लग र निगरानी गरिन्छ।",
+  "This service-role view omits unrelated structured clinical narrative and vital signs because this prototype does not store separate field-level service permissions.": "यस सेवा-भूमिका दृश्यमा असम्बन्धित संरचित क्लिनिकल विवरण र जीवनचिह्नहरू देखाइँदैनन्, किनकि यस प्रोटोटाइपले छुट्टै फिल्ड-स्तर सेवा अनुमतिहरू भण्डारण गर्दैन।"
 }

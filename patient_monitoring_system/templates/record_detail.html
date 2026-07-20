@@ -59,6 +59,9 @@
     </section>
 
     <div class="record-detail-body">
+      {% if record.service_scope_limited %}
+      <div class="alert alert-info py-2 small"><i class="bi bi-shield-check" aria-hidden="true"></i> This service-role view omits unrelated structured clinical narrative and vital signs because this prototype does not store separate field-level service permissions.</div>
+      {% endif %}
       {% if result %}
       <section class="record-risk-banner record-risk-{{ risk_key }}" aria-label="Access and risk result">
         <i class="bi {{ 'bi-shield-check' if risk_key in ['normal', 'low'] else 'bi-exclamation-triangle' }}" aria-hidden="true"></i>
@@ -175,10 +178,10 @@
 
     <footer class="record-detail-footer">
       <div class="record-detail-actions">
-        <a href="{{ url_for('record_export', record_id=record.id) }}" class="btn btn-primary"
+        {% if export_allowed %}<a href="{{ url_for('record_export', record_id=record.id) }}" class="btn btn-primary"
            title="Export is logged; USB transfer is auto-monitored if a drive is connected">
           <i class="bi bi-usb-drive" aria-hidden="true"></i>Log Export / Copy to USB
-        </a>
+        </a>{% endif %}
         {% if not current_user.is_admin_panel %}
         <form method="POST" action="{{ url_for('record_delete', record_id=record.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

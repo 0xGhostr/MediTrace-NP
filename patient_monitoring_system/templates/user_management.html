@@ -31,7 +31,7 @@
                 <td>{{ user.staff_id }}</td>
                 <td>{{ user.username }}</td>
                 <td>{{ tr_display(user.role) }}</td>
-                <td>{{ tr_display(user.department) }}</td>
+                <td>{{ tr_display(user.department) }}{% if not user.role_department_valid %}<div><span class="badge bg-warning text-dark">Assignment review required</span></div>{% endif %}</td>
                 <td>
                     {% if user.approval_status == 'approved' %}<span class="badge bg-success">Approved</span>
                     {% elif user.approval_status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>

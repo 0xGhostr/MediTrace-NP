@@ -7,6 +7,7 @@ from flask_login import UserMixin, current_user
 from config import Config
 from models import get_user_by_id, verify_password
 from i18n import _
+from record_access import normalize_role
 
 
 class User(UserMixin):
@@ -35,16 +36,16 @@ class User(UserMixin):
 
     @property
     def is_super_admin(self):
-        return self.role == 'Super Admin'
+        return normalize_role(self.role) == 'Super Admin'
 
     @property
     def is_admin(self):
-        return self.role == 'Admin'
+        return normalize_role(self.role) == 'Admin'
 
     @property
     def is_admin_panel(self):
         """Super Admin or Admin — dashboard / management access."""
-        return self.role in Config.ADMIN_PANEL_ROLES
+        return normalize_role(self.role) in Config.ADMIN_PANEL_ROLES
 
     @property
     def is_approved(self):

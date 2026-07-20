@@ -28,8 +28,8 @@ from models import (
     log_login_attempt, log_admin_action, get_pending_users, get_all_users,
     approve_user, reject_user, suspend_user, reactivate_user, soft_delete_user, update_user_details,
     get_pending_registration_count,
-    get_patient_record, get_all_patient_records, get_patient_records_page,
-    role_can_access_category,
+    get_patient_record, get_all_patient_records, get_authorized_patient_records,
+    get_patient_records_page,
     get_access_events, get_alerts, get_alert_count, get_alert_summary,
     get_alert_filter_options, resolve_alert, get_dashboard_stats,
     get_chart_access_timeline, get_chart_alerts_by_severity, get_chart_user_registrations,
@@ -67,6 +67,13 @@ from i18n import (
 from record_policy import (
     is_restricted_record, normalize_sensitivity, sensitivity_display,
     sensitivity_key,
+)
+from record_access import (
+    can_delete_record, can_edit_record, can_export_record, can_view_record,
+    departments_for_role, get_access_policy_reason, normalize_department, normalize_role,
+    record_for_display,
+    role_department_choices as get_role_department_choices,
+    validate_role_department,
 )
 
 
@@ -112,6 +119,15 @@ def inject_message_context():
         'is_restricted_record': is_restricted_record,
         'sensitivity_label': sensitivity_display,
         'sensitivity_key': sensitivity_key,
+        'role_department_choices': {
+            role: [
+                {'value': department, 'label': translate_display(department)}
+                for department in departments
+            ]
+            for role, departments in get_role_department_choices(
+                public_only=not current_user.is_authenticated
+            ).items()
+        },
     }
     if current_user.is_authenticated:
         ctx['unread_messages'] = get_unread_messages_for_user(current_user.id)
@@ -186,7 +202,10 @@ class RegisterForm(LocalizedFormMixin, FlaskForm):
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     role = SelectField('Requested Role', choices=[(r, r) for r in Config.STAFF_REGISTER_ROLES])
-    department = SelectField('Department', choices=[(d, d) for d in Config.DEPARTMENTS])
+    department = SelectField(
+        'Department', choices=[(d, d) for d in Config.DEPARTMENTS],
+        validate_choice=False,
+    )
     work_start = StringField('Work Start (HH:MM)', default='08:00', validators=[DataRequired()])
     work_end = StringField('Work End (HH:MM)', default='17:00', validators=[DataRequired()])
     submit = SubmitField('Register')
@@ -392,8 +411,19 @@ def change_temporary_password():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegisterForm()
+    selected_role = form.role.data or Config.STAFF_REGISTER_ROLES[0]
+    form.department.choices = [
+        (department, translate_display(department))
+        for department in departments_for_role(selected_role, public_only=True)
+    ]
     if form.validate_on_submit():
-        if get_user_by_username(form.username.data):
+        if not validate_role_department(
+                form.role.data, form.department.data, public_only=True):
+            form.department.errors = tuple(form.department.errors) + (
+                _('Select a valid department for the selected role.'),
+            )
+            flash('Select a valid department for the selected role.', 'danger')
+        elif get_user_by_username(form.username.data):
             flash('Username already exists.', 'danger')
         elif get_user_by_staff_id(form.staff_id.data):
             flash('Staff ID already registered.', 'danger')
@@ -432,14 +462,24 @@ def staff_dashboard():
         return redirect(url_for('admin_dashboard'))
 
     search = request.args.get('search', '')
-    allowed_categories = Config.ROLE_ACCESS.get(current_user.role) or []
-    records = get_all_patient_records(
-        category_filter=allowed_categories, search=search or None
+    records = get_authorized_patient_records(current_user, search=search or None)
+    assignment_valid = validate_role_department(
+        current_user.role, current_user.department
     )
-    for rec in records:
-        rec['allowed'] = True
-        rec['is_restricted'] = is_restricted_record(rec)
-    return render_template('staff_dashboard.html', records=records, search=search)
+    if not assignment_valid:
+        process_access(
+            current_user, None, 'search', authorized=False,
+            policy_reason='invalid_role_department_assignment', monitor_usb=False,
+        )
+        flash(
+            'Your role and department assignment requires administrator review '
+            'before patient records can be accessed.',
+            'warning',
+        )
+    return render_template(
+        'staff_dashboard.html', records=records, search=search,
+        assignment_valid=assignment_valid,
+    )
 
 
 @app.route('/staff/profile')
@@ -552,16 +592,32 @@ def patient_records():
             filters['sensitivity'] = ''
 
     records, pagination = get_patient_records_page(
-        current_user.role,
-        current_user.is_admin_panel,
+        current_user,
         filters=filters,
         page=page,
         per_page=15,
     )
 
+    assignment_valid = validate_role_department(
+        current_user.role, current_user.department
+    )
+    if not assignment_valid:
+        process_access(
+            current_user, None, 'search', authorized=False,
+            policy_reason='invalid_role_department_assignment', monitor_usb=False,
+        )
+        flash(
+            'Your role and department assignment requires administrator review '
+            'before patient records can be accessed.',
+            'warning',
+        )
+
     if filters['search']:
         for rec in records[:5]:
-            process_access(current_user, rec, 'search')
+            process_access(
+                current_user, rec, 'search', authorized=True,
+                policy_reason=get_access_policy_reason(current_user, rec, 'view'),
+            )
 
     return render_template(
         'patient_records.html',
@@ -572,6 +628,7 @@ def patient_records():
         categories=Config.RECORD_CATEGORIES,
         departments=Config.DEPARTMENTS,
         sensitivities=Config.SENSITIVITY_LEVELS,
+        assignment_valid=assignment_valid,
     )
 
 
@@ -599,16 +656,26 @@ def record_detail(record_id):
     if not record:
         abort(404)
 
-    # Log an unauthorized direct attempt for investigation, but never render
-    # patient-record content outside the user's category permissions.
-    if not current_user.is_admin_panel and not role_can_access_category(
-            current_user.role, record['record_category']):
-        process_access(current_user, record, 'view')
-        abort(403)
+    policy_reason = get_access_policy_reason(current_user, record, 'view')
+    if not can_view_record(current_user, record):
+        process_access(
+            current_user, record, 'view', authorized=False,
+            policy_reason=policy_reason,
+        )
+        message = (
+            'Your role and department assignment requires administrator review '
+            'before patient records can be accessed.'
+            if policy_reason == 'invalid_role_department_assignment'
+            else 'Access denied.'
+        )
+        abort(403, description=_(message))
 
     record['is_restricted'] = is_restricted_record(record)
 
-    result = process_access(current_user, record, 'view')
+    result = process_access(
+        current_user, record, 'view', authorized=True,
+        policy_reason=policy_reason,
+    )
     usb_warning = session.pop('usb_popup', None) or result.get('usb_warning')
     flash(
         _(
@@ -620,7 +687,9 @@ def record_detail(record_id):
         'info' if result['final_risk_level'] == 'Normal' else 'warning'
     )
     return render_template(
-        'record_detail.html', record=record, result=result, usb_warning=usb_warning,
+        'record_detail.html', record=record_for_display(current_user, record),
+        result=result, usb_warning=usb_warning,
+        export_allowed=can_export_record(current_user, record),
     )
 
 
@@ -631,11 +700,17 @@ def record_export(record_id):
     record = get_patient_record(record_id)
     if not record:
         abort(404)
-    if not current_user.is_admin_panel and not role_can_access_category(
-            current_user.role, record['record_category']):
-        process_access(current_user, record, 'export')
-        abort(403)
-    result = process_access(current_user, record, 'export')
+    policy_reason = get_access_policy_reason(current_user, record, 'export')
+    if not can_export_record(current_user, record):
+        process_access(
+            current_user, record, 'export', authorized=False,
+            policy_reason=policy_reason,
+        )
+        abort(403, description=_('Access denied.'))
+    result = process_access(
+        current_user, record, 'export', authorized=True,
+        policy_reason=policy_reason,
+    )
     if result.get('usb_warning'):
         session['usb_popup'] = result['usb_warning']
     if not result.get('usb_export_allowed', True):
@@ -663,7 +738,11 @@ def record_delete(record_id):
     record = get_patient_record(record_id)
     if not record:
         abort(404)
-    result = process_access(current_user, record, 'delete_attempt')
+    delete_allowed = can_delete_record(current_user, record)
+    result = process_access(
+        current_user, record, 'delete_attempt', authorized=delete_allowed,
+        policy_reason=get_access_policy_reason(current_user, record, 'delete'),
+    )
     if current_user.is_admin_panel:
         flash('Delete blocked. Admin audit logged.', 'info')
     else:
@@ -711,9 +790,19 @@ def pending_users():
         department = request.form.get('department')
 
         if action == 'approve':
-            approve_user(user_id, current_user.id, role=role, department=department)
-            log_admin_action(current_user.id, 'approve_user', user_id, f'Approved as {role}')
-            flash('User approved successfully.', 'success')
+            try:
+                approve_user(user_id, current_user.id, role=role, department=department)
+                log_admin_action(
+                    current_user.id, 'approve_user', user_id,
+                    f'Approved role={normalize_role(role)}; department={normalize_department(department)}',
+                )
+                flash('User approved successfully.', 'success')
+            except ValueError as exc:
+                log_admin_action(
+                    current_user.id, 'invalid_role_department_assignment', user_id,
+                    f'Approval denied; role={role}; department={department}',
+                )
+                flash(str(exc), 'danger')
         elif action == 'reject':
             reason = request.form.get('rejection_reason', 'Registration rejected by admin.')
             reject_user(user_id, reason)
@@ -725,6 +814,10 @@ def pending_users():
     users = get_pending_users()
     for u in users:
         u['created_at_display'] = format_datetime_display(u.get('created_at'))
+        u['role_department_valid'] = validate_role_department(u['role'], u['department'])
+        u['valid_departments'] = list(
+            departments_for_role(u['role'], public_only=True)
+        )
     return render_template(
         'pending_users.html',
         users=users,
@@ -761,15 +854,27 @@ def user_management():
         elif action == 'update':
             if not can_manage_user(current_user, target) or target['role'] in Config.ADMIN_PANEL_ROLES:
                 abort(403)
-            update_user_details(
-                user_id,
-                role=request.form.get('role'),
-                department=request.form.get('department'),
-                work_start=request.form.get('work_start'),
-                work_end=request.form.get('work_end'),
-            )
-            log_admin_action(current_user.id, 'update_user', user_id, 'Details updated')
-            flash('User details updated.', 'success')
+            previous_role, previous_department = target['role'], target['department']
+            try:
+                update_user_details(
+                    user_id,
+                    role=request.form.get('role'),
+                    department=request.form.get('department'),
+                    work_start=request.form.get('work_start'),
+                    work_end=request.form.get('work_end'),
+                )
+                log_admin_action(
+                    current_user.id, 'update_user_assignment', user_id,
+                    f'role={previous_role}->{normalize_role(request.form.get("role"))}; '
+                    f'department={previous_department}->{normalize_department(request.form.get("department"))}',
+                )
+                flash('User details updated.', 'success')
+            except ValueError as exc:
+                log_admin_action(
+                    current_user.id, 'invalid_role_department_assignment', user_id,
+                    'User assignment update denied.',
+                )
+                flash(str(exc), 'danger')
         elif action == 'delete':
             ok, msg = can_delete_user(current_user._raw, target)
             if not ok:
@@ -784,6 +889,7 @@ def user_management():
     users = get_all_users()
     for u in users:
         u['created_at_display'] = format_datetime_display(u.get('created_at'))
+        u['role_department_valid'] = validate_role_department(u['role'], u['department'])
     return render_template(
         'user_management.html',
         users=users,
@@ -802,6 +908,9 @@ def edit_user_account(user_id):
         abort(404)
     if not can_manage_user(current_user, target):
         abort(403)
+    target['role_department_valid'] = validate_role_department(
+        target['role'], target['department']
+    )
     if request.method == 'POST':
         try:
             _require_admin_password_confirmation()
@@ -827,7 +936,9 @@ def edit_user_account(user_id):
                 (
                     f"username_changed={result['username_changed']};"
                     f"temporary_password_set={result['password_reset']};"
-                    f"approval_status_preserved={result['approval_status_preserved']}"
+                    f"approval_status_preserved={result['approval_status_preserved']};"
+                    f"role={result['previous_role']}->{result['new_role']};"
+                    f"department={result['previous_department']}->{result['new_department']}"
                 ),
             )
             if result['credential_changed']:
@@ -843,10 +954,13 @@ def edit_user_account(user_id):
             abort(403)
         except ValueError as exc:
             flash(str(exc), 'danger')
+    edit_departments = list(departments_for_role(target['role']))
+    if target['department'] not in edit_departments:
+        edit_departments.append(target['department'])
     return render_template(
         'edit_account.html', user=target,
         roles=['Admin'] if target['role'] == 'Admin' else Config.STAFF_REGISTER_ROLES,
-        departments=Config.DEPARTMENTS,
+        departments=edit_departments,
         password_min_length=Config.TEMPORARY_PASSWORD_MIN_LENGTH,
     )
 
@@ -1135,8 +1249,24 @@ def patient_data_management():
                 flash('Simulated patient record created.', 'success')
             else:
                 record_id = int(request.form.get('record_id'))
+                existing_record = get_patient_record(record_id)
+                if not existing_record:
+                    abort(404)
+                policy_reason = get_access_policy_reason(
+                    current_user, existing_record, 'edit'
+                )
+                if not can_edit_record(current_user, existing_record):
+                    process_access(
+                        current_user, existing_record, 'edit', authorized=False,
+                        policy_reason=policy_reason,
+                    )
+                    abort(403)
                 try:
                     update_patient_record(record_id, record_data)
+                    process_access(
+                        current_user, existing_record, 'edit', authorized=True,
+                        policy_reason=policy_reason,
+                    )
                     log_admin_action(current_user.id, 'update_patient_record', details=f"id={record_id}")
                 except sqlite3.DatabaseError as exc:
                     handle_patient_record_database_error(exc)
@@ -1144,8 +1274,24 @@ def patient_data_management():
                 flash('Simulated patient record updated.', 'success')
         elif action == 'deactivate':
             record_id = int(request.form.get('record_id'))
+            existing_record = get_patient_record(record_id)
+            if not existing_record:
+                abort(404)
+            policy_reason = get_access_policy_reason(
+                current_user, existing_record, 'delete'
+            )
+            if not can_delete_record(current_user, existing_record):
+                process_access(
+                    current_user, existing_record, 'delete_attempt',
+                    authorized=False, policy_reason=policy_reason,
+                )
+                abort(403)
             try:
                 deactivate_patient_record(record_id)
+                process_access(
+                    current_user, existing_record, 'delete_attempt',
+                    authorized=True, policy_reason=policy_reason,
+                )
                 log_admin_action(current_user.id, 'deactivate_patient_record', details=f"id={record_id}")
             except sqlite3.DatabaseError as exc:
                 handle_patient_record_database_error(exc)
@@ -1212,18 +1358,27 @@ def admin_create_user():
             if not valid:
                 flash(password_error, 'danger')
                 return redirect(url_for('admin_create_user'))
-            create_approved_staff_user({
-                'full_name': request.form.get('full_name'),
-                'staff_id': staff_id,
-                'email': email,
-                'username': username,
-                'password': request.form.get('password'),
-                'role': request.form.get('role'),
-                'department': request.form.get('department'),
-                'work_start': request.form.get('work_start', '08:00'),
-                'work_end': request.form.get('work_end', '17:00'),
-                'must_change_password': True,
-            }, created_by_id=current_user.id)
+            try:
+                create_approved_staff_user({
+                    'full_name': request.form.get('full_name'),
+                    'staff_id': staff_id,
+                    'email': email,
+                    'username': username,
+                    'password': request.form.get('password'),
+                    'role': request.form.get('role'),
+                    'department': request.form.get('department'),
+                    'work_start': request.form.get('work_start', '08:00'),
+                    'work_end': request.form.get('work_end', '17:00'),
+                    'must_change_password': True,
+                }, created_by_id=current_user.id)
+            except ValueError as exc:
+                flash(str(exc), 'danger')
+                return render_template(
+                    'create_staff_user.html', roles=Config.STAFF_REGISTER_ROLES,
+                    departments=list(departments_for_role(
+                        request.form.get('role'), public_only=True
+                    )),
+                ), 400
             log_admin_action(
                 current_user.id, 'emergency_create_user', details=f'username={username}'
             )
@@ -1235,7 +1390,10 @@ def admin_create_user():
     return render_template(
         'create_staff_user.html',
         roles=Config.STAFF_REGISTER_ROLES,
-        departments=Config.DEPARTMENTS,
+        departments=list(departments_for_role(
+            request.form.get('role') or Config.STAFF_REGISTER_ROLES[0],
+            public_only=True,
+        )),
     )
 
 
@@ -1301,6 +1459,10 @@ def manage_admins():
                 valid, password_error = validate_password_policy(request.form.get('password', ''))
                 if not valid:
                     flash(password_error, 'danger')
+                    return redirect(url_for('manage_admins'))
+                if not validate_role_department(
+                        'Admin', request.form.get('department')):
+                    flash('Select a valid department for the selected role.', 'danger')
                     return redirect(url_for('manage_admins'))
                 create_admin_user({
                     'full_name': request.form.get('full_name'),
@@ -1398,7 +1560,7 @@ def manage_admins():
     return render_template(
         'manage_admins.html',
         admins=admins,
-        departments=Config.DEPARTMENTS,
+        departments=list(departments_for_role('Admin')),
     )
 
 
@@ -1723,7 +1885,10 @@ def api_user_registrations():
 # --- Error handlers ---
 @app.errorhandler(403)
 def forbidden(e):
-    return render_template('error.html', code=403, message='Access denied.'), 403
+    message = getattr(e, 'description', None)
+    if not message or message == "You don't have the permission to access the requested resource.":
+        message = _('Access denied.')
+    return render_template('error.html', code=403, message=message), 403
 
 
 @app.errorhandler(404)

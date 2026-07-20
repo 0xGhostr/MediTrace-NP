@@ -57,7 +57,8 @@ class Config:
 
     RISK_LEVELS = ['Normal', 'Medium', 'High', 'Critical']
 
-    # Role-based allowed record categories
+    # Legacy category permissions retained for existing export/risk behaviour.
+    # Patient-record visibility is defined centrally in record_access.py.
     ROLE_ACCESS = {
         'Super Admin': None,
         'Admin': None,  # All categories

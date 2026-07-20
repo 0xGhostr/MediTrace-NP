@@ -31,7 +31,7 @@
         <i class="bi bi-info-circle"></i>
         <div>
             <strong>Access Policy:</strong>
-            Only permitted patient records should be accessed. All access activity is logged and monitored by the MediTrace-NP security system.
+            Patient records are shown according to your approved role, department and service responsibilities. Admin and Superadmin users have privileged view access. All patient-record activity is logged and monitored.
         </div>
     </div>
 
@@ -167,14 +167,14 @@
                                 >
                                     <i class="bi bi-eye"></i> View
                                 </a>
-                                <a
+                                {% if r.can_export %}<a
                                     href="{{ url_for('record_export', record_id=r.id) }}"
                                     class="pr-btn-export"
                                     aria-label="Log export for {{ r.patient_code }}"
                                     title="Log export to USB monitoring"
                                 >
                                     <i class="bi bi-download"></i> Export
-                                </a>
+                                </a>{% endif %}
                             </div>
                         </td>
                     </tr>

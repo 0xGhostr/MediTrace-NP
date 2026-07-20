@@ -12,6 +12,7 @@ from werkzeug.security import generate_password_hash
 
 from config import Config
 from database import get_db
+from record_access import normalize_department, normalize_role, validate_role_department
 
 
 REQUEST_TYPES = {
@@ -569,6 +570,12 @@ def edit_account(actor, target_user_id, data, temporary_password=None):
                 raise ValueError('Administrator role changes must use Manage Admins.')
         elif role not in Config.STAFF_REGISTER_ROLES:
             raise ValueError('Select a valid staff role.')
+        if not validate_role_department(
+                role, department,
+                public_only=target['role'] not in Config.ADMIN_PANEL_ROLES):
+            raise ValueError('Select a valid department for the selected role.')
+        role = normalize_role(role)
+        department = normalize_department(department)
         for column, value, label in (
             ('username', username, 'Username'),
             ('staff_id', staff_id, 'Staff ID'),
@@ -612,6 +619,10 @@ def edit_account(actor, target_user_id, data, temporary_password=None):
             'password_reset': password_change,
             'credential_changed': credential_changed,
             'approval_status_preserved': target['approval_status'],
+            'previous_role': target['role'],
+            'new_role': role,
+            'previous_department': target['department'],
+            'new_department': department,
         }
     finally:
         conn.close()

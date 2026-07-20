@@ -13,6 +13,13 @@ from record_policy import (
     normalize_category,
     normalize_sensitivity,
 )
+from record_access import (
+    authorized_record_predicate,
+    can_export_record,
+    normalize_department,
+    normalize_role,
+    validate_role_department,
+)
 
 
 def row_to_dict(row):
@@ -64,6 +71,12 @@ def get_user_by_email(email):
 
 def create_user(data):
     """Insert a new user with hashed password."""
+    if not validate_role_department(
+            data.get('role'), data.get('department'), public_only=True):
+        raise ValueError('Select a valid department for the selected role.')
+    data = dict(data)
+    data['role'] = normalize_role(data['role'])
+    data['department'] = normalize_department(data['department'])
     password_hash = generate_password_hash(data['password'])
     now = datetime.utcnow().isoformat()
     with write_connection() as conn:
@@ -168,8 +181,54 @@ def get_all_patient_records(category_filter=None, search=None):
     return [row_to_dict(r) for r in records]
 
 
-def get_patient_records_page(role, is_admin_panel, filters=None, page=1, per_page=15):
+def _record_query_user(user_or_role, is_admin_panel=None):
+    """Accept current user objects while retaining old test/helper compatibility."""
+    if not isinstance(user_or_role, str):
+        return user_or_role
+    role = normalize_role(user_or_role) or user_or_role
+    default_departments = {
+        'Super Admin': 'Administration', 'Admin': 'Administration',
+        'Doctor': 'General Medicine', 'Nurse': 'General Medicine',
+        'Laboratory Staff': 'Laboratory', 'Billing Staff': 'Billing',
+        'Receptionist': 'Reception',
+    }
+    return {
+        'role': role,
+        'department': default_departments.get(role),
+        'approval_status': 'approved', 'is_active': 1, 'is_deleted': 0,
+    }
+
+
+def get_authorized_patient_records(user, search=None):
+    """Return all active rows in the centralized view scope for dashboards."""
+    scope_sql, scope_params = authorized_record_predicate(user)
+    conditions = ['COALESCE(is_active, 1) = 1', scope_sql]
+    params = list(scope_params)
+    if search:
+        search_value = f'%{str(search).strip()}%'
+        conditions.append(
+            '(patient_code LIKE ? OR record_title LIKE ? OR department LIKE ?)'
+        )
+        params.extend([search_value, search_value, search_value])
+    conn = get_db()
+    rows = conn.execute(
+        f'''SELECT * FROM patient_records
+            WHERE {' AND '.join(conditions)}
+            ORDER BY created_at DESC, id DESC''',
+        params,
+    ).fetchall()
+    conn.close()
+    records = [row_to_dict(row) for row in rows]
+    for record in records:
+        record['allowed'] = True
+        record['is_restricted'] = is_restricted_record(record)
+        record['can_export'] = can_export_record(user, record)
+    return records
+
+
+def get_patient_records_page(user_or_role, is_admin_panel=None, filters=None, page=1, per_page=15):
     """Return one authorized, server-filtered page plus count metadata."""
+    user = _record_query_user(user_or_role, is_admin_panel)
     filters = filters or {}
     try:
         page = max(int(page), 1)
@@ -183,17 +242,11 @@ def get_patient_records_page(role, is_admin_panel, filters=None, page=1, per_pag
     conditions = ['COALESCE(is_active, 1) = 1']
     params = []
 
-    # Authorization is part of the SQL predicate so neither page rows nor total
-    # counts include records outside a staff member's category permissions.
-    if not is_admin_panel:
-        allowed = Config.ROLE_ACCESS.get(role) or []
-        allowed_keys = [normalize_category(value) for value in allowed]
-        if not allowed_keys:
-            conditions.append('1 = 0')
-        else:
-            placeholders = ','.join('?' * len(allowed_keys))
-            conditions.append(f'{category_expr} IN ({placeholders})')
-            params.extend(allowed_keys)
+    # Authorization is the first SQL predicate, before filtering, counting, and
+    # pagination, so unauthorized rows and totals never reach the caller.
+    scope_sql, scope_params = authorized_record_predicate(user)
+    conditions.append(scope_sql)
+    params.extend(scope_params)
 
     search = str(filters.get('search') or '').strip()
     if search:
@@ -252,6 +305,7 @@ def get_patient_records_page(role, is_admin_panel, filters=None, page=1, per_pag
     for record in records:
         record['allowed'] = True
         record['is_restricted'] = is_restricted_record(record)
+        record['can_export'] = can_export_record(user, record)
 
     start = offset + 1 if total else 0
     end = min(offset + len(records), total) if total else 0
@@ -519,6 +573,10 @@ def approve_user(user_id, admin_id, role=None, department=None):
         role = user['role']
     if department is None:
         department = user['department']
+    if not validate_role_department(role, department, public_only=True):
+        raise ValueError('Select a valid department for the selected role.')
+    role = normalize_role(role)
+    department = normalize_department(department)
     conn.execute('''
         UPDATE users SET approval_status = 'approved', role = ?, department = ?,
             approved_by = ?, approved_at = ?, is_active = 1
@@ -563,6 +621,16 @@ def soft_delete_user(user_id):
 
 
 def update_user_details(user_id, **kwargs):
+    current = get_user_by_id(user_id)
+    if not current:
+        raise ValueError('User account was not found.')
+    role = kwargs.get('role', current['role'])
+    department = kwargs.get('department', current['department'])
+    public_only = normalize_role(current['role']) not in Config.ADMIN_PANEL_ROLES
+    if not validate_role_department(role, department, public_only=public_only):
+        raise ValueError('Select a valid department for the selected role.')
+    kwargs['role'] = normalize_role(role)
+    kwargs['department'] = normalize_department(department)
     conn = get_db()
     allowed = ['role', 'department', 'work_start', 'work_end', 'full_name']
     for key, value in kwargs.items():
@@ -1241,6 +1309,10 @@ def get_admin_users():
 
 def create_admin_user(data, created_by_id):
     """Create an Admin account (Super Admin only)."""
+    if not validate_role_department('Admin', data.get('department')):
+        raise ValueError('Select a valid department for the selected role.')
+    data = dict(data)
+    data['department'] = normalize_department(data['department'])
     conn = get_db()
     password_hash = generate_password_hash(data['password'])
     now = datetime.utcnow().isoformat()
@@ -1266,6 +1338,9 @@ def create_admin_user(data, created_by_id):
 
 
 def update_admin_user(user_id, **kwargs):
+    if kwargs.get('department') is not None and not validate_role_department(
+            'Admin', kwargs.get('department')):
+        raise ValueError('Select a valid department for the selected role.')
     conn = get_db()
     changed_by = kwargs.pop('changed_by', None)
     allowed = ['full_name', 'staff_id', 'email', 'username', 'department', 'work_start', 'work_end']
@@ -1396,6 +1471,12 @@ def format_nepal_datetime(iso_str):
 
 def create_approved_staff_user(data, created_by_id=None):
     """Emergency staff account creation by Admin/Super Admin (pre-approved, active)."""
+    if not validate_role_department(
+            data.get('role'), data.get('department'), public_only=True):
+        raise ValueError('Select a valid department for the selected role.')
+    data = dict(data)
+    data['role'] = normalize_role(data['role'])
+    data['department'] = normalize_department(data['department'])
     conn = get_db()
     password_hash = generate_password_hash(data['password'])
     now = datetime.utcnow().isoformat()

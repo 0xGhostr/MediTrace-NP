@@ -29,7 +29,9 @@ def _request_metadata():
     return ip_address, computer_name, browser_info
 
 
-def process_access(user, record, action_type):
+def process_access(
+        user, record, action_type, *, authorized=True, policy_reason=None,
+        monitor_usb=True):
     """Evaluate and persist one explainable access decision."""
     user_dict = user._raw if hasattr(user, '_raw') else user
     if hasattr(user, 'id'):
@@ -54,6 +56,11 @@ def process_access(user, record, action_type):
     hybrid = risk_engine.calculate_hybrid(rule_result, anomaly)
     final_risk = hybrid['final_risk_level']
     anomaly_score = anomaly.get('anomaly_score')
+
+    # Authorization evidence is appended only after risk calculation so this
+    # audit upgrade cannot change rules, weights, thresholds, or ML scoring.
+    rule_result['authorization_allowed'] = bool(authorized)
+    rule_result['policy_reason_code'] = policy_reason
 
     explanation = {
         'schema_version': 2,
@@ -81,6 +88,11 @@ def process_access(user, record, action_type):
         'hybrid': hybrid,
         'final_hybrid_score': hybrid['final_hybrid_score'],
         'final_risk_level': final_risk,
+        'authorization': {
+            'allowed': bool(authorized),
+            'policy_reason_code': policy_reason,
+            'record_department': record.get('department') if record else None,
+        },
         'minimum_risk_override': hybrid.get('minimum_risk_override'),
         'human_review_required': hybrid['human_review_required'],
         'privacy_note': (
@@ -152,15 +164,17 @@ def process_access(user, record, action_type):
 
     usb_warning = None
     usb_monitoring_error = None
-    try:
-        import usb_engine
-        usb_warning = usb_engine.on_patient_data_access(
-            user_dict, record, action_type, computer_name, session if has_request_context() else None,
-            browser_info=browser_info,
-        )
-    except Exception as exc:
-        usb_monitoring_error = str(exc)
-        logger.exception('USB monitoring failed after access event %s', event_id)
+    if monitor_usb:
+        try:
+            import usb_engine
+            usb_warning = usb_engine.on_patient_data_access(
+                user_dict, record, action_type, computer_name,
+                session if has_request_context() else None,
+                browser_info=browser_info,
+            )
+        except Exception as exc:
+            usb_monitoring_error = str(exc)
+            logger.exception('USB monitoring failed after access event %s', event_id)
 
     return {
         'event_id': event_id, 'timestamp': event_data['timestamp'],
@@ -174,4 +188,6 @@ def process_access(user, record, action_type):
         'explanation': explanation, 'human_review_required': hybrid['human_review_required'],
         'usb_warning': usb_warning, 'usb_monitoring_error': usb_monitoring_error,
         'usb_export_allowed': not usb_warning or usb_warning.get('export_allowed', True),
+        'authorization_allowed': bool(authorized),
+        'policy_reason_code': policy_reason,
     }

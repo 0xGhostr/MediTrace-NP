@@ -49,8 +49,8 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">{{ form.role.label(class="form-label") }}{{ form.role(class="form-select") }}</div>
-                        <div class="col-md-6 mb-3">{{ form.department.label(class="form-label") }}{{ form.department(class="form-select") }}</div>
+                        <div class="col-md-6 mb-3">{{ form.role.label(class="form-label") }}{{ form.role(class="form-select", **{'data-role-department-role': ''}) }}</div>
+                        <div class="col-md-6 mb-3">{{ form.department.label(class="form-label") }}{{ form.department(class="form-select", **{'data-role-department-department': '', 'data-review-label': _('requires review')}) }}</div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">{{ form.work_start.label(class="form-label") }}{{ form.work_start(class="form-control", placeholder="08:00") }}</div>

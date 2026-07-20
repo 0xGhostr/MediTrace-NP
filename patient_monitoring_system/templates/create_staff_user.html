@@ -27,13 +27,13 @@
       </div>
       <div class="col-md-3">
         <label class="form-label">Role</label>
-        <select name="role" class="form-select" required>
+        <select name="role" class="form-select" required data-role-department-role>
           {% for r in roles %}<option value="{{ r }}">{{ tr_display(r) }}</option>{% endfor %}
         </select>
       </div>
       <div class="col-md-3">
         <label class="form-label">Department</label>
-        <select name="department" class="form-select" required>
+        <select name="department" class="form-select" required data-role-department-department data-review-label="{{ _('requires review') }}">
           {% for d in departments %}<option value="{{ d }}">{{ tr_display(d) }}</option>{% endfor %}
         </select>
       </div>

@@ -6,7 +6,7 @@
 {{ page_header('Staff Dashboard', _('Welcome, {name}', name=current_user.full_name) ~ ' · ' ~ tr_display(current_user.role) ~ ' · ' ~ tr_display(current_user.department), 'bi-house-door', 'Monitored access', 'bi-shield-check') }}
 
 <div class="alert alert-info">
-    <i class="bi bi-info-circle"></i> Records outside your role are marked Restricted. Access is logged and flagged.
+    <i class="bi bi-info-circle"></i> Patient records are shown according to your approved role, department and service responsibilities. All patient-record activity is logged and monitored.
     Alerts require human admin review — ML supports investigation only.
 </div>
 
@@ -47,7 +47,7 @@
                     <td><a href="{{ url_for('record_detail', record_id=r.id) }}" class="btn btn-sm btn-primary"><i class="bi bi-eye"></i>View</a></td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" class="text-center text-muted">No records found for your role.</td></tr>
+                <tr><td colspan="6" class="text-center text-muted">{% if not assignment_valid %}Your role and department assignment requires administrator review before patient records can be accessed.{% else %}No records found for your role and department.{% endif %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
