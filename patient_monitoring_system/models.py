@@ -451,6 +451,24 @@ def insert_alert(alert_data):
         values,
     )
     alert_id = cursor.lastrowid
+    if str(alert_data.get('severity', '')).strip().lower() == 'critical':
+        conn.execute(
+            '''
+            INSERT OR IGNORE INTO messages (
+                sender_id, receiver_id, title, body, is_read, is_urgent,
+                created_at, notification_type, related_alert_id
+            )
+            SELECT ?, u.id, 'Critical Security Alert',
+                   'A new critical patient-record access alert has been generated and requires review.',
+                   0, 1, ?, 'critical_alert', ?
+            FROM users u
+            WHERE LOWER(TRIM(u.role)) IN ('admin', 'super admin')
+              AND LOWER(TRIM(u.approval_status)) = 'approved'
+              AND COALESCE(u.is_active, 0) = 1
+              AND COALESCE(u.is_deleted, 0) = 0
+            ''',
+            (alert_data['user_id'], alert_data['created_at'], alert_id),
+        )
     conn.commit()
     conn.close()
     return alert_id
@@ -463,6 +481,19 @@ def get_pending_users():
     ).fetchall()
     conn.close()
     return [row_to_dict(u) for u in users]
+
+
+def get_pending_registration_count():
+    """Count only current, non-deleted pending staff registrations."""
+    conn = get_db()
+    count = conn.execute('''
+        SELECT COUNT(*) AS count
+        FROM users
+        WHERE LOWER(TRIM(approval_status)) = 'pending'
+          AND COALESCE(is_deleted, 0) = 0
+    ''').fetchone()['count']
+    conn.close()
+    return int(count or 0)
 
 
 def get_all_users(status_filter=None):
@@ -662,16 +693,7 @@ def get_alerts(filters=None, limit=200, offset=0):
         LEFT JOIN access_events e ON e.id = a.event_id
         LEFT JOIN users resolver ON resolver.id = a.resolved_by
         WHERE {where_sql}
-        ORDER BY
-            CASE a.severity
-                WHEN 'Critical' THEN 1
-                WHEN 'High' THEN 2
-                WHEN 'Medium' THEN 3
-                WHEN 'Low' THEN 4
-                WHEN 'Normal' THEN 5
-                ELSE 6
-            END,
-            a.created_at DESC
+        ORDER BY a.created_at DESC, a.id DESC
         LIMIT ? OFFSET ?
     '''
     params.extend([limit, offset])
@@ -1092,7 +1114,7 @@ def get_messages_for_user(user_id):
         SELECT m.*, u.username AS sender_username
         FROM messages m
         JOIN users u ON u.id = m.sender_id
-        WHERE m.receiver_id = ?
+        WHERE m.receiver_id = ? AND m.notification_type IS NULL
         ORDER BY m.created_at DESC
         """,
         (user_id,),
@@ -1108,7 +1130,7 @@ def get_sent_messages(admin_id):
         SELECT m.*, u.username AS receiver_username
         FROM messages m
         JOIN users u ON u.id = m.receiver_id
-        WHERE m.sender_id = ?
+        WHERE m.sender_id = ? AND m.notification_type IS NULL
         ORDER BY m.created_at DESC
         """,
         (admin_id,),
@@ -1125,6 +1147,7 @@ def get_unread_messages_for_user(user_id):
         FROM messages m
         JOIN users u ON u.id = m.sender_id
         WHERE m.receiver_id = ? AND m.is_read = 0
+          AND m.notification_type IS NULL
         ORDER BY m.created_at DESC
         """,
         (user_id,),
@@ -1267,6 +1290,55 @@ def update_admin_user(user_id, **kwargs):
         )
     conn.commit()
     conn.close()
+
+
+def get_unread_critical_notifications(user_id, limit=10):
+    """Return safe popup metadata for one authorized recipient."""
+    conn = get_db()
+    rows = conn.execute(
+        '''
+        SELECT m.id AS notification_id, m.related_alert_id AS alert_id,
+               a.username, a.department, a.created_at,
+               e.action_type
+        FROM messages m
+        JOIN alerts a ON a.id = m.related_alert_id
+        LEFT JOIN access_events e ON e.id = a.event_id
+        WHERE m.receiver_id = ? AND m.is_read = 0
+          AND m.notification_type = 'critical_alert'
+          AND LOWER(TRIM(a.severity)) = 'critical'
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT ?
+        ''',
+        (user_id, max(1, min(int(limit), 50))),
+    ).fetchall()
+    conn.close()
+    return [row_to_dict(row) for row in rows]
+
+
+def mark_critical_notification_seen(notification_id, user_id):
+    """Mark only the current recipient's Critical notification as seen."""
+    now = datetime.utcnow().isoformat()
+    with write_connection() as conn:
+        row = conn.execute(
+            '''
+            SELECT related_alert_id
+            FROM messages
+            WHERE id = ? AND receiver_id = ?
+              AND notification_type = 'critical_alert'
+            ''',
+            (notification_id, user_id),
+        ).fetchone()
+        if not row:
+            return None
+        conn.execute(
+            '''
+            UPDATE messages SET is_read = 1, read_at = ?
+            WHERE id = ? AND receiver_id = ?
+              AND notification_type = 'critical_alert'
+            ''',
+            (now, notification_id, user_id),
+        )
+        return row['related_alert_id']
 
 
 def set_user_password(user_id, new_password, must_change=False, changed_by=None):

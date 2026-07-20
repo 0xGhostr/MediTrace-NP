@@ -218,8 +218,11 @@ def init_db():
             is_urgent INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL,
             read_at TEXT,
+            notification_type TEXT,
+            related_alert_id INTEGER,
             FOREIGN KEY (sender_id) REFERENCES users(id),
-            FOREIGN KEY (receiver_id) REFERENCES users(id)
+            FOREIGN KEY (receiver_id) REFERENCES users(id),
+            FOREIGN KEY (related_alert_id) REFERENCES alerts(id)
         );
 
         CREATE TABLE IF NOT EXISTS account_recovery_requests (
@@ -561,6 +564,18 @@ def migrate_schema(cursor):
                 cursor.execute(
                     f'ALTER TABLE alerts ADD COLUMN {column_name} {column_type}'
                 )
+
+    message_cols = table_columns.get('messages', set())
+    if message_cols:
+        if 'notification_type' not in message_cols:
+            cursor.execute('ALTER TABLE messages ADD COLUMN notification_type TEXT')
+        if 'related_alert_id' not in message_cols:
+            cursor.execute('ALTER TABLE messages ADD COLUMN related_alert_id INTEGER')
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_critical_alert_recipient
+            ON messages(receiver_id, related_alert_id)
+            WHERE notification_type = 'critical_alert' AND related_alert_id IS NOT NULL
+        ''')
 
 
 def _normalise_usb_serial(value):

@@ -217,6 +217,74 @@
     </script>
     {% endif %}
 
+    {% if current_user.is_authenticated and current_user.is_admin_panel and critical_notifications %}
+    {% set critical_notification = critical_notifications[0] %}
+    <div class="toast-container position-fixed top-0 end-0 p-3 critical-alert-toast-container" aria-live="assertive" aria-atomic="true">
+      <div
+        class="toast critical-alert-toast"
+        id="criticalAlertToast"
+        role="alert"
+        data-bs-autohide="false"
+        data-seen-url="{{ url_for('acknowledge_critical_notification', notification_id=critical_notification.notification_id) }}"
+        data-csrf-token="{{ csrf_token() }}"
+        aria-labelledby="criticalAlertToastTitle"
+        aria-describedby="criticalAlertToastDescription"
+      >
+        <div class="toast-header critical-alert-toast-header">
+          <i class="bi bi-exclamation-octagon-fill text-danger me-2" aria-hidden="true"></i>
+          <strong class="me-auto" id="criticalAlertToastTitle">Critical Security Alert</strong>
+          <form method="POST" action="{{ url_for('acknowledge_critical_notification', notification_id=critical_notification.notification_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="dismiss">
+            <input type="hidden" name="next" value="{{ language_return_path }}">
+            <button type="submit" class="btn-close" aria-label="{{ _('Dismiss') }}"></button>
+          </form>
+        </div>
+        <div class="toast-body" id="criticalAlertToastDescription">
+          <p>A new critical patient-record access alert has been generated and requires review.</p>
+          <dl class="critical-alert-toast-details">
+            <div><dt>Alert Reference</dt><dd>#{{ critical_notification.alert_id }}</dd></div>
+            <div><dt>Staff</dt><dd data-no-translate>{{ critical_notification.username }}</dd></div>
+            <div><dt>Department</dt><dd>{{ tr_display(critical_notification.department) }}</dd></div>
+            {% if critical_notification.action_type %}<div><dt>Access Action</dt><dd>{{ tr_display(critical_notification.action_type) }}</dd></div>{% endif %}
+            <div><dt>Generated</dt><dd>{{ critical_notification.created_at|nepal_datetime }}</dd></div>
+          </dl>
+          <div class="critical-alert-toast-actions">
+            <form method="POST" action="{{ url_for('acknowledge_critical_notification', notification_id=critical_notification.notification_id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="view">
+              <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-eye" aria-hidden="true"></i> View Alert</button>
+            </form>
+            <form method="POST" action="{{ url_for('acknowledge_critical_notification', notification_id=critical_notification.notification_id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="dismiss">
+              <input type="hidden" name="next" value="{{ language_return_path }}">
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Dismiss</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const toastElement = document.getElementById('criticalAlertToast');
+        toastElement.addEventListener('shown.bs.toast', function() {
+          const formData = new FormData();
+          formData.append('csrf_token', toastElement.dataset.csrfToken);
+          formData.append('action', 'seen');
+          fetch(toastElement.dataset.seenUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+          }).catch(function(error) {
+            console.error('Critical notification acknowledgement failed:', error);
+          });
+        }, { once: true });
+        bootstrap.Toast.getOrCreateInstance(toastElement).show();
+      });
+    </script>
+    {% endif %}
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

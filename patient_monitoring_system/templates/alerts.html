@@ -84,12 +84,12 @@
       of <strong>{{ pagination.filtered_total }}</strong> alerts
       {% if pagination.filtered_total != alert_summary.total %}<span class="alerts-total-context">({{ alert_summary.total }} total)</span>{% endif %}
     </span>
-    <span><i class="bi bi-sort-down" aria-hidden="true"></i>Sorted by severity, then newest first</span>
+    <span><i class="bi bi-sort-down" aria-hidden="true"></i>Sorted by newest alert first</span>
   </div>
 
   <section class="security-alert-list" aria-label="Security alert results">
     {% for alert in alerts %}
-    <article class="security-alert-card severity-{{ alert.severity|lower }} status-{{ alert.status|lower|replace(' ', '-') }}">
+    <article id="alert-{{ alert.id }}" class="security-alert-card severity-{{ alert.severity|lower }} status-{{ alert.status|lower|replace(' ', '-') }}">
       <header class="security-alert-card-header">
         <div class="security-alert-identity">
           <span class="security-alert-number">#{{ alert.id }}</span>

@@ -27,6 +27,7 @@ from models import (
     create_user, get_user_by_username, get_user_by_staff_id, get_user_by_email, update_user_login,
     log_login_attempt, log_admin_action, get_pending_users, get_all_users,
     approve_user, reject_user, suspend_user, reactivate_user, soft_delete_user, update_user_details,
+    get_pending_registration_count,
     get_patient_record, get_all_patient_records, get_patient_records_page,
     role_can_access_category,
     get_access_events, get_alerts, get_alert_count, get_alert_summary,
@@ -35,6 +36,7 @@ from models import (
     get_user_activity_summary, create_patient_record, update_patient_record, deactivate_patient_record,
     send_message, get_messages_for_user, get_sent_messages, get_unread_messages_for_user,
     mark_message_read, get_message, get_admin_users, create_admin_user, update_admin_user,
+    get_unread_critical_notifications, mark_critical_notification_seen,
     set_user_password, can_delete_user, get_user_by_id, format_datetime_display,
     format_nepal_datetime, verify_password,
     update_user_language,
@@ -105,6 +107,8 @@ def inject_message_context():
         'nav_active': nav_active,
         'APP_NAME': Config.APP_NAME,
         'open_recovery_request_count': 0,
+        'pending_registration_count': 0,
+        'critical_notifications': [],
         'is_restricted_record': is_restricted_record,
         'sensitivity_label': sensitivity_display,
         'sensitivity_key': sensitivity_key,
@@ -114,6 +118,10 @@ def inject_message_context():
         ctx['unread_message_count'] = len(ctx['unread_messages'])
         if current_user.is_admin_panel:
             ctx['open_recovery_request_count'] = get_recovery_request_count(current_user)
+            ctx['pending_registration_count'] = get_pending_registration_count()
+            ctx['critical_notifications'] = get_unread_critical_notifications(
+                current_user.id,
+            )
     return ctx
 
 
@@ -1051,6 +1059,29 @@ def admin_alerts():
         alert_summary=alert_summary, filter_options=filter_options,
         pagination=pagination,
     )
+
+
+@app.route(
+    '/admin/critical-notifications/<int:notification_id>/acknowledge',
+    methods=['POST'],
+)
+@login_required
+@admin_panel_required
+def acknowledge_critical_notification(notification_id):
+    alert_id = mark_critical_notification_seen(notification_id, current_user.id)
+    if alert_id is None:
+        abort(404)
+    action = request.form.get('action')
+    if action == 'seen':
+        return '', 204
+    if action == 'view':
+        return redirect(url_for(
+            'admin_alerts', search=str(alert_id), _anchor=f'alert-{alert_id}',
+        ))
+    next_path = request.form.get('next', '')
+    if is_safe_next_url(next_path):
+        return redirect(next_path)
+    return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/admin/reports', methods=['GET', 'POST'])

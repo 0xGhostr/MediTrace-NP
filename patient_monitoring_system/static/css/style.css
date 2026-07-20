@@ -531,6 +531,25 @@ textarea.form-control { min-height: 88px; resize: vertical; }
 .alert .btn-close { margin-left: auto; padding: 0.8rem; }
 
 .badge { padding: 0.32rem 0.52rem; border-radius: 999px; font-size: 0.67rem; font-weight: 700; letter-spacing: 0.01em; }
+
+.critical-alert-toast-container { top: 4.25rem !important; z-index: 1090; }
+.critical-alert-toast {
+    width: min(390px, calc(100vw - 1.5rem));
+    color: var(--app-text);
+    background: var(--app-surface);
+    border: 1px solid var(--app-danger);
+    box-shadow: var(--app-shadow-lg);
+}
+.critical-alert-toast-header {
+    color: var(--app-text);
+    background: var(--app-danger-soft);
+    border-bottom-color: var(--app-border);
+}
+.critical-alert-toast-details { display: grid; gap: 0.35rem; margin: 0 0 0.85rem; }
+.critical-alert-toast-details div { display: flex; justify-content: space-between; gap: 1rem; }
+.critical-alert-toast-details dt { color: var(--app-muted); font-size: 0.72rem; font-weight: 700; }
+.critical-alert-toast-details dd { margin: 0; overflow-wrap: anywhere; text-align: right; }
+.critical-alert-toast-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .status-pill {
     display: inline-flex;
     align-items: center;

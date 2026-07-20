@@ -939,5 +939,14 @@
   "Next page": "अर्को पृष्ठ",
   "Page {number}": "पृष्ठ {number}",
   "Switch to Dark Mode": "डार्क मोडमा जानुहोस्",
-  "Switch to Light Mode": "लाइट मोडमा जानुहोस्"
+  "Switch to Light Mode": "लाइट मोडमा जानुहोस्",
+  "Pending registrations: {count}": "विचाराधीन दर्ताहरू: {count}",
+  "Sorted by newest alert first": "नयाँ चेतावनी पहिले आउने गरी क्रमबद्ध",
+  "Critical Security Alert": "गम्भीर सुरक्षा चेतावनी",
+  "A new critical patient-record access alert has been generated and requires review.": "नयाँ गम्भीर बिरामी अभिलेख पहुँच चेतावनी सिर्जना भएको छ र समीक्षा आवश्यक छ।",
+  "Alert Reference": "चेतावनी सन्दर्भ",
+  "Staff": "कर्मचारी",
+  "Access Action": "पहुँच कार्य",
+  "View Alert": "चेतावनी हेर्नुहोस्",
+  "Dismiss": "बन्द गर्नुहोस्"
 }

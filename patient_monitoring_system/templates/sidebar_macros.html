@@ -25,6 +25,7 @@
     <li class="nav-item">
         <a class="nav-link {{ nav_active('pending_users') }}" href="{{ url_for('pending_users') }}">
             <i class="bi bi-person-plus"></i><span>Pending Registrations</span>
+            {% if pending_registration_count > 0 %}<span class="badge bg-danger ms-auto" aria-label="{{ _('Pending registrations: {count}', count=pending_registration_count) }}">{{ '99+' if pending_registration_count > 99 else pending_registration_count }}</span>{% endif %}
         </a>
     </li>
     <li class="nav-item">
